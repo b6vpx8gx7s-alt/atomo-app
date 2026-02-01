@@ -209,8 +209,19 @@ st.markdown("""
     div[data-testid="stMetricValue"] div { color: #22D3EE !important; }
     div[data-testid="stDataFrame"] { border: 1px solid #334155; border-radius: 8px; background-color: #1E293B; }
 
+   
+    div[data-testid="stDataFrame"] { border: 1px solid #334155; border-radius: 8px; background-color: #1E293B; }
+
+   
+    button[aria-label="Show password"] svg,
+    button[aria-label="Hide password"] svg {
+        fill: #000000 !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
+
+
 
 DB_FILE = 'atomo_v15.db' 
 
