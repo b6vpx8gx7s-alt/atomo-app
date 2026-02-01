@@ -32,7 +32,13 @@ except:
     GOOGLE_CLIENT_ID = "error"; GOOGLE_CLIENT_SECRET = "error"
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-REDIRECT_URI = "http://localhost:8501"
+
+# AJUSTE AUTOMÁTICO DE REDIRECT URI
+if "streamlit.app" in str(os.environ.get("STREAMLIT_SERVER_ADDRESS", "")):
+    REDIRECT_URI = "https://atomo-app.streamlit.app" 
+else:
+    REDIRECT_URI = "http://localhost:8501"
+
 SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/gmail.send"]
 
 # ==========================================
@@ -52,12 +58,12 @@ st.markdown("""
 
     /* 2. FONDO OSCURO GENERAL */
     .stApp {
-        background-color: #0B1120; /* Azul muy oscuro */
+        background-color: #0B1120;
         background-image: radial-gradient(at 50% 0%, #172554 0%, transparent 70%);
         color: #FFFFFF !important;
     }
 
-    /* 3. TÍTULOS Y TEXTOS GENERALES (BLANCOS) */
+    /* 3. TÍTULOS Y TEXTOS GENERALES */
     h1, h2, h3, h4, h5, h6, p, label, li, span {
         color: #FFFFFF !important;
     }
@@ -135,6 +141,29 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
+    /* ======================================================= */
+    /* 👁️ ARREGLO DEL OJITO (COLOR NEGRO DIRECTO) */
+    /* ======================================================= */
+    
+    /* 1. Seleccionamos el SVG dentro del botón del input */
+    div[data-testid="stTextInput"] button svg {
+        fill: #000000 !important;   /* Relleno Negro */
+        stroke: #000000 !important; /* Borde Negro */
+        color: #000000 !important;  /* Color Negro */
+    }
+    
+    /* 2. Seleccionamos el PATH dentro del SVG (por si acaso) */
+    div[data-testid="stTextInput"] button svg path {
+        fill: #000000 !important;
+        stroke: #000000 !important;
+    }
+
+    /* 3. Aseguramos que el botón sea transparente */
+    div[data-testid="stTextInput"] button {
+        border: none !important;
+        background-color: transparent !important;
+    }
+
     /* ------------------------------------------------------- */
 
     /* 6. SIDEBAR */
@@ -209,24 +238,13 @@ st.markdown("""
     div[data-testid="stMetricValue"] div { color: #22D3EE !important; }
     div[data-testid="stDataFrame"] { border: 1px solid #334155; border-radius: 8px; background-color: #1E293B; }
 
-   
-    div[data-testid="stDataFrame"] { border: 1px solid #334155; border-radius: 8px; background-color: #1E293B; }
-
-   
-    button[aria-label="Show password"] svg,
-    button[aria-label="Hide password"] svg {
-        fill: #000000 !important;
-    }
-
 </style>
 """, unsafe_allow_html=True)
-
-
 
 DB_FILE = 'atomo_v15.db' 
 
 # ==========================================
-# 🗄️ BASE DE DATOS Y LÓGICA MONETIZACIÓN
+# 🗄️ BASE DE DATOS Y LÓGICA DE NEGOCIO
 # ==========================================
 
 def generar_codigo_ref(nombre):
@@ -263,7 +281,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS facturas (id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT, consecutivo INTEGER, fecha TEXT, cliente_nombre TEXT, cliente_nit TEXT, concepto TEXT, valor_base REAL, val_retefuente REAL, val_reteica REAL, neto_pagar REAL, ciudad TEXT, estado TEXT, fecha_pago TEXT, metodo_pago TEXT, banco_snapshot_id INTEGER, ciudad_ica TEXT)''')
     conn.commit()
     
-    # Migración
     col_nuevas = ["creditos", "premium_hasta", "codigo_propio", "referido_por"]
     for col in col_nuevas:
         try: 
@@ -332,7 +349,7 @@ def enviar_email_con_gmail(creds, para, asunto, cuerpo, pdf_bytes, nombre_archiv
     except Exception as e: st.error(f"Error email: {e}"); return False
 
 # ==========================================
-# 📄 MOTOR PDF V14.3
+# 📄 MOTOR PDF
 # ==========================================
 def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciudad_emision, id_banco_in, consecutivo, fecha):
     c_fresh = conn.cursor()
@@ -349,7 +366,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     
     pdf = FPDF('P', 'mm', 'A4'); pdf.add_page()
     
-    # --- HEADER INTELIGENTE ---
     logo_width = 0 
     start_x_logo = 15
     target_h_logo = 20
@@ -385,7 +401,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     
     pdf.ln(10)
     
-    # --- BODY ---
     pdf.set_font("Arial", 'B', 14); pdf.set_text_color(R, G, B)
     pdf.cell(0, 8, f"CUENTA DE COBRO N° {consecutivo:04d}", ln=1, align='L')
     pdf.set_font("Arial", '', 9); pdf.set_text_color(100, 100, 100)
@@ -496,7 +511,6 @@ if st.session_state['usuario_activo'] is None:
         try:
             st.image("logo_nuevo.png", use_container_width=True)
         except FileNotFoundError:
-             st.warning("⚠️ Guarda tu nuevo logo como 'logo_nuevo.png' en la carpeta del proyecto.")
              st.markdown("<h1 style='text-align: center; color: white;'>Átomo</h1>", unsafe_allow_html=True)
         
         t_log, t_reg = st.tabs(["INICIAR SESIÓN", "REGISTRARSE"])
@@ -534,6 +548,7 @@ if st.session_state['usuario_activo'] is None:
                 rn = st.text_input("Nombre Completo")
                 re = st.text_input("Tu Correo")
                 rp = st.text_input("Define tu Contraseña", type="password")
+                
                 ref_code = st.text_input("¿Tienes un código de referido?", value=ref_from_url)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -568,14 +583,6 @@ else:
     usuario = st.session_state['usuario_activo']
     c = conn.cursor(); u_data = c.execute('SELECT * FROM usuarios WHERE email=?', (usuario,)).fetchone()
     
-    # --- AUTO-REPAIR PARA USUARIOS VIEJOS SIN CÓDIGO ---
-    if len(u_data) > 15 and u_data[15] is None:
-        new_c = generar_codigo_ref(u_data[2])
-        c.execute("UPDATE usuarios SET codigo_propio=? WHERE email=?", (new_c, usuario))
-        conn.commit()
-        st.rerun()
-    # ---------------------------------------------------
-
     with st.sidebar:
         if u_data[6]:
             try: st.image(u_data[6], use_container_width=True)
@@ -685,7 +692,7 @@ else:
             msg_ws = f"Hola! Te recomiendo Átomo para tus cuentas de cobro. Regístrate con mi link y gana 5 créditos gratis: {link_ref}"
             st.markdown(f'''
                 <a href="https://wa.me/?text={msg_ws.replace(' ', '%20')}" target="_blank">
-                    <button style="background-color:#25D366; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; width:100%; cursor:pointer;">
+                    <button style="background-color:#25D366; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; width:100%;">
                         📲 Enviar por WhatsApp
                     </button>
                 </a>
