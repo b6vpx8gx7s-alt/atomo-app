@@ -18,6 +18,7 @@ from email.mime.application import MIMEApplication
 import altair as alt
 from PIL import Image, ImageDraw
 import re
+import time 
 
 # ==========================================
 # 🧠 INTELIGENCIA ARTIFICIAL (BIOMETRÍA)
@@ -30,31 +31,17 @@ except ImportError:
     IA_DISPONIBLE = False
 
 def comparar_rostros(documento_bytes, selfie_bytes):
-    """ Función interna para verificar identidad """
-    if not IA_DISPONIBLE:
-        return False, "⚠️ Las librerías de IA no están instaladas (dlib/face_recognition)."
-    
+    if not IA_DISPONIBLE: return False, "⚠️ Librerías de IA no instaladas."
     try:
-        # 1. Cargar las imágenes desde la memoria RAM (bytes)
-        imagen_doc = face_recognition.load_image_file(io.BytesIO(documento_bytes))
-        imagen_selfie = face_recognition.load_image_file(io.BytesIO(selfie_bytes))
-
-        # 2. Encontrar las caras (Encodings)
-        rostros_doc = face_recognition.face_encodings(imagen_doc)
-        rostros_selfie = face_recognition.face_encodings(imagen_selfie)
-
-        # 3. Validar si hay caras
-        if len(rostros_doc) == 0: return False, "⚠️ No se detecta ninguna cara en la foto del documento."
-        if len(rostros_selfie) == 0: return False, "⚠️ No se detecta ninguna cara en la selfie."
-
-        # 4. Comparar
-        coincide = face_recognition.compare_faces([rostros_doc[0]], rostros_selfie[0], tolerance=0.6)
-
-        if coincide[0]: return True, "✅ Identidad Verificada Correctamente."
-        else: return False, "❌ La persona de la selfie no coincide con la del documento."
-
-    except Exception as e:
-        return False, f"Error técnico de IA: {str(e)}"
+        img_doc = face_recognition.load_image_file(io.BytesIO(documento_bytes))
+        img_selfie = face_recognition.load_image_file(io.BytesIO(selfie_bytes))
+        enc_doc = face_recognition.face_encodings(img_doc)
+        enc_selfie = face_recognition.face_encodings(img_selfie)
+        if not enc_doc: return False, "⚠️ No veo cara en el documento."
+        if not enc_selfie: return False, "⚠️ No veo cara en la selfie."
+        match = face_recognition.compare_faces([enc_doc[0]], enc_selfie[0], tolerance=0.6)
+        return (True, "✅ Identidad Verificada Correctamente.") if match[0] else (False, "❌ Los rostros no coinciden.")
+    except Exception as e: return False, f"Error técnico de IA: {str(e)}"
 
 # ==========================================
 # 🔐 GESTIÓN DE SECRETOS
@@ -69,46 +56,215 @@ except:
     GOOGLE_CLIENT_ID = "error"; GOOGLE_CLIENT_SECRET = "error"
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-if "streamlit.app" in str(os.environ.get("STREAMLIT_SERVER_ADDRESS", "")):
-    REDIRECT_URI = "https://atomo-app.streamlit.app" 
-else:
-    REDIRECT_URI = "http://localhost:8501"
-
+REDIRECT_URI = "https://atomo-app-mzfqjvym9gu3wxb66dqueb.streamlit.app/"
 SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/gmail.send"]
 
 # ==========================================
-# 📱 CONFIGURACIÓN VISUAL Y CSS
+# 📱 CONFIGURACIÓN VISUAL (CSS CORREGIDO FINAL)
 # ==========================================
 st.set_page_config(page_title="Átomo.co", page_icon="⚛️", layout="wide", initial_sidebar_state="expanded")
-
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Montserrat', sans-serif; }
-    .stApp { background-color: #0B1120; background-image: radial-gradient(at 50% 0%, #172554 0%, transparent 70%); color: #FFFFFF !important; }
-    h1, h2, h3, h4, h5, h6, p, label, li, span, div { color: #FFFFFF !important; }
-    input, textarea { color: #000000 !important; -webkit-text-fill-color: #000000 !important; font-weight: 600 !important; }
-    div[data-baseweb="input"], div[data-baseweb="base-input"], div[data-baseweb="textarea"], div[data-testid="stForm"] { background-color: #FFFFFF !important; border-radius: 8px !important; border: 1px solid #E2E8F0 !important; }
-    div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #000000 !important; }
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] div span { color: #000000 !important; }
-    ul[data-baseweb="menu"] li { background-color: #FFFFFF !important; color: #000000 !important; }
-    div[data-testid="stFileUploader"] section[role="button"] { background-color: rgba(255, 255, 255, 0.1) !important; border: 2px dashed #94A3B8 !important; }
-    div[data-testid="stTextInput"] label p, div[data-testid="stSelectbox"] label p, div[data-testid="stNumberInput"] label p { color: #CBD5E1 !important; font-weight: 600; }
-    div[data-testid="stForm"] label p, div[data-testid="stForm"] div[data-testid="stTextInput"] label p { color: #0F172A !important; font-weight: 700 !important; }
     
-    /* OJITO NEGRO */
-    div[data-testid="stTextInput"] button svg { fill: #000000 !important; stroke: #000000 !important; color: #000000 !important; }
-    div[data-testid="stTextInput"] button { border: none !important; background-color: transparent !important; }
+    /* FONDO OSCURO APP */
+    .stApp { background-color: #0B1120; background-image: radial-gradient(at 50% 0%, #172554 0%, transparent 70%); color: #FFFFFF !important; }
+    
+    /* TEXTO GENERAL BLANCO (Títulos, párrafos, etiquetas) */
+    h1, h2, h3, h4, h5, h6, p, label, li { color: #FFFFFF !important; }
 
+    /* ==============================
+       FIX GLOBAL: EXPANDERS (st.expander)
+       - Texto visible en fondos oscuros
+       - Hover azul
+       ============================== */
+
+    div[data-testid="stExpander"] summary {
+        background: rgba(15, 23, 42, 0.85) !important; /* azul oscuro */
+        border: 1px solid rgba(148, 163, 184, 0.35) !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+    }
+
+    /* Texto del título del expander (ej: “Nuevo Cliente”, preguntas FAQ) */
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] summary span,
+    div[data-testid="stExpander"] summary div {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        font-weight: 700 !important;
+    }
+
+    /* Iconos del expander (flecha / + / etc.) */
+    div[data-testid="stExpander"] summary svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Hover: azul */
+    div[data-testid="stExpander"] summary:hover {
+        background: rgba(14, 165, 233, 0.25) !important; /* azul */
+        border-color: rgba(34, 211, 238, 0.6) !important;
+    }
+
+    /* Cuerpo del expander (contenido desplegado) */
+    div[data-testid="stExpander"] div[role="region"] {
+        border: 1px solid rgba(148, 163, 184, 0.20) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        background: rgba(2, 6, 23, 0.15) !important; /* sutil */
+    }
+    
+    /* --- INPUTS BLANCOS CON LETRA NEGRA --- */
+    input, textarea { 
+        color: #000000 !important; 
+        -webkit-text-fill-color: #000000 !important; 
+        background-color: #FFFFFF !important; 
+        font-weight: 600 !important;
+    }
+    div[data-baseweb="input"], div[data-baseweb="base-input"], div[data-testid="stForm"] { 
+        background-color: #FFFFFF !important; 
+        border-radius: 8px !important; 
+        border: 1px solid #E2E8F0 !important; 
+    }
+    
+    /* --- FIX SELECTBOX Y MENÚS DESPLEGABLES --- */
+    div[data-baseweb="select"] > div {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] div {
+        color: #000000 !important;
+    }
+    ul[data-baseweb="menu"] li {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    ul[data-baseweb="menu"] li div, ul[data-baseweb="menu"] li span {
+        color: #000000 !important;
+    }
+
+    /* --- FIX CRÍTICO: CÓDIGO DE REFERIDOS (st.code) --- */
+    /* Caja contenedora: Blanca */
+    [data-testid="stCodeBlock"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stCodeBlock"] pre {
+        background-color: #FFFFFF !important;
+    }
+    /* Texto del código: NEGRO FORZADO */
+    [data-testid="stCodeBlock"] code {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        font-weight: bold !important;
+    }
+    /* SPANS internos del código: NEGRO FORZADO (Sobrescribe la regla global blanca) */
+    [data-testid="stCodeBlock"] code span {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+    }
+    /* FORZAR COLOR NEGRO A TODO LO INTERNO DEL CODEBLOCK */
+    [data-testid="stCodeBlock"] span,
+    [data-testid="stCodeBlock"] div,
+    [data-testid="stCodeBlock"] pre,
+    [data-testid="stCodeBlock"] code {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+        filter: none !important;
+    }
+    /* Botón de copiar y su icono: NEGRO */
+    [data-testid="stCodeBlock"] button {
+        color: #000000 !important;
+    }
+    [data-testid="stCodeBlock"] button svg {
+        fill: #000000 !important;
+        color: #000000 !important;
+    }
+
+    /* --- FIX CRÍTICO: DATAFRAME (TABLA) Y BARRA DE HERRAMIENTAS --- */
+    div[data-testid="stDataFrame"] div { color: #000000 !important; }
+    div[data-testid="stDataFrame"] span { color: #000000 !important; }
+    
+    /* Iconos de la tabla (3 puntos, lupa, descarga) */
+    [data-testid="stElementToolbar"] button {
+        color: #000000 !important;
+    }
+    [data-testid="stElementToolbar"] svg {
+        fill: #000000 !important;
+        color: #000000 !important;
+    }
+    
+    /* Popups de la tabla */
+    div[role="dialog"] div, div[role="menu"] div, div[class*="MuiPaper"] div { color: #000000 !important; }
+
+    /* Etiquetas de Inputs (que se vean grises sobre el azul oscuro) */
+    div[data-testid="stTextInput"] label p, 
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stTextArea"] label p { 
+        color: #CBD5E1 !important; 
+    }
+    div[data-testid="stForm"] label p { 
+        color: #0F172A !important; 
+    }
+
+    /* --- FIX CARGADOR DE ARCHIVOS (File Uploader) --- */
+    div[data-testid="stFileUploader"] section {
+        background-color: #FFFFFF !important;
+        border: 2px dashed #94A3B8 !important;
+    }
+    div[data-testid="stFileUploader"] section span,
+    div[data-testid="stFileUploader"] section small,
+    div[data-testid="stFileUploader"] section div {
+        color: #000000 !important;
+    }
+    div[data-testid="stFileUploader"] section button {
+        background-color: #F1F5F9 !important;
+        color: #000000 !important;
+        border: 1px solid #CBD5E1 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* --- UNIFICACIÓN DE BOTONES PRINCIPALES (AZUL CIAN CON TEXTO NEGRO) --- */
+    .stButton > button, 
+    div[data-testid="stFormSubmitButton"] > button,
+    div[data-testid="stLinkButton"] > a { 
+        background: linear-gradient(90deg, #0EA5E9 0%, #22D3EE 100%) !important; 
+        border: none !important; 
+        border-radius: 8px !important; 
+        height: 45px !important; 
+        width: 100% !important; 
+        color: #000000 !important; 
+        font-weight: 900 !important; 
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-decoration: none !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    /* Texto dentro del Link Button */
+    div[data-testid="stLinkButton"] > a > div { color: #000000 !important; }
+    
+    .stButton > button:hover, 
+    div[data-testid="stFormSubmitButton"] > button:hover,
+    div[data-testid="stLinkButton"] > a:hover {
+        opacity: 0.9 !important;
+        transform: scale(1.02) !important;
+        color: #000000 !important;
+    }
+
+    /* Botones internos de los inputs (ojo contraseña, etc) */
+    div[data-testid="stTextInput"] button svg { fill: #000000 !important; stroke: #000000 !important; }
+    div[data-testid="stTextInput"] button { border: none !important; background: transparent !important; }
+    
     section[data-testid="stSidebar"] { background-color: #020617 !important; border-right: 1px solid #1E293B; }
-    .stButton > button, div[data-testid="stFormSubmitButton"] > button { background: linear-gradient(90deg, #0EA5E9 0%, #22D3EE 100%) !important; border: none !important; border-radius: 8px !important; height: 45px !important; width: 100%; }
-    .stButton > button p, div[data-testid="stFormSubmitButton"] > button p { color: #000000 !important; font-weight: 800 !important; }
-    div[data-testid="stExpander"] details > summary { background: linear-gradient(90deg, #0EA5E9 0%, #22D3EE 100%) !important; border: none !important; border-radius: 8px; color: #000000 !important; }
-    div[data-testid="stExpander"] details > summary p { color: #000000 !important; font-weight: 800 !important; }
-    div[data-testid="stMetric"] { background-color: #172554 !important; border: 1px solid #1E293B; border-radius: 12px; }
-    div[data-testid="stDataFrame"] { border: 1px solid #334155; border-radius: 8px; background-color: #1E293B; }
-
+    
     /* TARJETAS DE PRECIOS */
     .price-card { background-color: #1E293B; padding: 20px; border-radius: 15px; border: 1px solid #334155; text-align: center; margin-bottom: 10px; }
     .price-title { font-size: 18px; font-weight: bold; color: #22D3EE !important; }
@@ -124,9 +280,7 @@ DB_FILE = 'atomo_v15.db'
 # ==========================================
 def generar_codigo_ref(nombre):
     base = "".join([c for c in nombre if c.isalnum()]).upper()[:4]
-    if len(base) < 3: base = "ATOM"
-    num = str(random.randint(100, 999))
-    return f"{base}{num}"
+    return f"{base}{random.randint(100, 999)}"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
@@ -136,9 +290,9 @@ def init_db():
         firma_digital BLOB, membrete BLOB, rol TEXT DEFAULT 'proveedor', link_pago TEXT, 
         slogan TEXT, direccion TEXT, email_contacto TEXT, color_marca TEXT,
         creditos INTEGER DEFAULT 5, premium_hasta TEXT, codigo_propio TEXT,
-        referido_por TEXT, tipo_documento TEXT, foto_documento BLOB
+        referido_por TEXT, tipo_documento TEXT, foto_documento BLOB, verificado_biometria INTEGER DEFAULT 0
     )''')
-    try: c.execute("ALTER TABLE usuarios ADD COLUMN verificado_biometria INTEGER DEFAULT 0")
+    try: c.execute("ALTER TABLE usuarios ADD COLUMN verificado_biometria INTEGER DEFAULT 0"); conn.commit()
     except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS clientes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT, nombre_cliente TEXT, nit_cliente TEXT, ciudad_cliente TEXT, email_cliente TEXT, telefono_cliente TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS cuentas_bancarias (id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT, banco TEXT, numero_cuenta TEXT, tipo_cuenta TEXT, bre_b TEXT, qr_imagen BLOB)''')
@@ -207,7 +361,7 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf = FPDF('P', 'mm', 'A4'); pdf.add_page()
     start_x_logo = 15; target_h_logo = 20; logo_width = 0
     if u[6]:
-        ext_l = get_image_ext(u[6]); fname_l = f"logo.{ext_l}"
+        ext_l = get_image_ext(u[6]); fname_l = f"logo.{ext_l}"; 
         with open(fname_l, "wb") as f: f.write(u[6])
         try: 
             with Image.open(fname_l) as img_pil:
@@ -240,13 +394,11 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     txt_banco = f"Banco: {bank[2]}\nTipo: {bank[4]}\nNo. Cuenta: {bank[3]}"
     if bank[5]: txt_banco += f"\nLlave Bre-B: {bank[5]}"
     y_qr = pdf.get_y(); pdf.multi_cell(100, 5, txt_banco)
-    
     if bank[6]:
         ext_q = get_image_ext(bank[6]); fname_q = f"tqr.{ext_q}"; 
         with open(fname_q, "wb") as f: f.write(bank[6])
         try: pdf.image(fname_q, x=130, y=y_qr, w=30); pdf.set_xy(130, y_qr+31); pdf.cell(30, 5, "Escanear", align='C')
         except: pass
-    
     pdf.set_auto_page_break(False); Y_FIRMA = 225
     if u[5]:
         ext_f = get_image_ext(u[5]); fname_f = f"tsig.{ext_f}"; 
@@ -268,6 +420,33 @@ if 'registro_paso' not in st.session_state: st.session_state['registro_paso'] = 
 if 'temp_reg_data' not in st.session_state: st.session_state['temp_reg_data'] = {}
 
 ref_from_url = st.query_params.get("ref", "")
+
+# 🔔 DETECCIÓN DE PAGO AUTOMÁTICO (Wompi/MercadoPago Redirección)
+# Si la URL tiene ?plan=...&status=approved, activamos el plan
+if st.session_state['usuario_activo'] and "status" in st.query_params:
+    status = st.query_params["status"]
+    plan_comprado = st.query_params.get("plan", "Desconocido")
+    
+    if status == "approved":
+        # Calcular días
+        dias = 7
+        if plan_comprado == "Mensual": dias = 30
+        elif plan_comprado == "Trimestral": dias = 90
+        elif plan_comprado == "Semestral": dias = 180
+        elif plan_comprado == "Anual": dias = 365
+        
+        # Activar en DB
+        new_date = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d')
+        c = conn.cursor()
+        c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (new_date, st.session_state['usuario_activo']))
+        conn.commit()
+        
+        st.balloons()
+        st.toast(f"✅ ¡Pago Exitoso! Plan {plan_comprado} activado.", icon="💎")
+        # Limpiar URL para que no se reactive al refrescar
+        st.query_params.clear()
+        time.sleep(2)
+        st.rerun()
 
 if "code" in st.query_params and st.session_state['usuario_activo'] is None:
     creds = get_google_user_info_and_creds(st.query_params["code"])
@@ -361,7 +540,13 @@ else:
         if es_premium: st.success(f"💎 PREMIUM\nVence: {premium_hasta}")
         else: st.info(f"⚡ Créditos: {u_data[13]}")
         st.markdown("---")
-        menu = st.radio("Navegación", ["📊 Panel de Control", "🗂️ Historial", "👥 Clientes", "📝 Facturar", "⚙️ Mi Perfil"])
+        
+        # ⚠️ ADMIN
+        ADMIN_EMAIL = "atomoapp.co@gmail.com" 
+        
+        opciones_menu = ["📊 Panel de Control", "🗂️ Historial", "👥 Clientes", "📝 Facturar", "⚙️ Mi Perfil", "📞 Soporte"]
+        if usuario == ADMIN_EMAIL: opciones_menu.append("🔧 ADMINISTRADOR")
+        menu = st.radio("Navegación", opciones_menu)
         st.markdown("---")
         if st.button("Cerrar Sesión"): st.session_state['usuario_activo'] = None; st.rerun()
 
@@ -415,36 +600,34 @@ else:
 
         with t4:
             st.markdown("### 💎 Planes de Suscripción")
-            st.info("Suscríbete para tener uso **ILIMITADO** (No gastas créditos).")
+            st.info("Suscríbete para tener uso **ILIMITADO**.")
             
-            p1, p2, p3 = st.columns(3)
-            with p1:
-                st.markdown("""<div class="price-card"><div class="price-title">SEMANAL</div><div class="price-amount">$8.000</div><div class="price-desc">Acceso total 7 días</div></div>""", unsafe_allow_html=True)
-                if st.button("Suscribirme (Semanal)"): 
-                    new_date = datetime.now() + timedelta(days=7); f_str = new_date.strftime('%Y-%m-%d')
-                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (f_str, usuario)); conn.commit(); st.balloons(); st.success("¡Suscripción Activada!"); st.rerun()
-            with p2:
-                st.markdown("""<div class="price-card"><div class="price-title">MENSUAL</div><div class="price-amount">$20.000</div><div class="price-desc">Acceso total 30 días</div></div>""", unsafe_allow_html=True)
-                if st.button("Suscribirme (Mensual)"): 
-                    new_date = datetime.now() + timedelta(days=30); f_str = new_date.strftime('%Y-%m-%d')
-                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (f_str, usuario)); conn.commit(); st.balloons(); st.success("¡Suscripción Activada!"); st.rerun()
-            with p3:
-                st.markdown("""<div class="price-card"><div class="price-title">TRIMESTRAL</div><div class="price-amount">$50.000</div><div class="price-desc">Acceso total 90 días</div></div>""", unsafe_allow_html=True)
-                if st.button("Suscribirme (Trimestral)"): 
-                    new_date = datetime.now() + timedelta(days=90); f_str = new_date.strftime('%Y-%m-%d')
-                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (f_str, usuario)); conn.commit(); st.balloons(); st.success("¡Suscripción Activada!"); st.rerun()
+            # LINKS REALES (CONFIGURA ESTO EN TU PASARELA)
+            # URL DE RETORNO EN PASARELA DEBE SER: http://localhost:8501/?status=approved&plan=Semanal (Ejemplo)
+            
+            # SIMULADOR (Para que lo pruebes YA)
+            def tarjeta_precio(titulo, precio, desc, link_pago):
+                st.markdown(f"""<div class="price-card"><div class="price-title">{titulo}</div><div class="price-amount">${precio}</div><div class="price-desc">{desc}</div></div>""", unsafe_allow_html=True)
+                # ENLACE REAL
+                st.link_button(f"Pagar {titulo}", link_pago)
 
+            # TUS LINKS REALES DE MERCADO PAGO:
+            LINK_SEMANAL = "https://mpago.li/2ZAwZMe"
+            LINK_MENSUAL = "https://mpago.li/1zKwouG"
+            LINK_TRIMESTRAL = "https://mpago.li/1D94kdu"
+            LINK_SEMESTRAL = "https://mpago.li/1ysMpvK"
+            LINK_ANUAL = "https://mpago.li/324S4jg"
+
+            p1, p2, p3 = st.columns(3)
+            with p1: tarjeta_precio("SEMANAL", "8.000", "Acceso 7 días", LINK_SEMANAL)
+            with p2: tarjeta_precio("MENSUAL", "20.000", "Acceso 30 días", LINK_MENSUAL)
+            with p3: tarjeta_precio("TRIMESTRAL", "50.000", "Acceso 90 días", LINK_TRIMESTRAL)
             p4, p5 = st.columns(2)
-            with p4:
-                st.markdown("""<div class="price-card"><div class="price-title">SEMESTRAL</div><div class="price-amount">$93.000</div><div class="price-desc">Acceso total 180 días</div></div>""", unsafe_allow_html=True)
-                if st.button("Suscribirme (Semestral)"): 
-                    new_date = datetime.now() + timedelta(days=180); f_str = new_date.strftime('%Y-%m-%d')
-                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (f_str, usuario)); conn.commit(); st.balloons(); st.success("¡Suscripción Activada!"); st.rerun()
-            with p5:
-                st.markdown("""<div class="price-card"><div class="price-title">ANUAL</div><div class="price-amount">$156.000</div><div class="price-desc">Acceso total 365 días</div></div>""", unsafe_allow_html=True)
-                if st.button("Suscribirme (Anual)"): 
-                    new_date = datetime.now() + timedelta(days=365); f_str = new_date.strftime('%Y-%m-%d')
-                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (f_str, usuario)); conn.commit(); st.balloons(); st.success("¡Suscripción Activada!"); st.rerun()
+            with p4: tarjeta_precio("SEMESTRAL", "93.000", "Acceso 180 días", LINK_SEMESTRAL)
+            with p5: tarjeta_precio("ANUAL", "156.000", "Acceso 365 días", LINK_ANUAL)
+            
+            st.markdown("---")
+            st.caption("🔒 Pagos seguros. Activación automática inmediata.")
 
         with t5:
             st.markdown("#### 🎁 Gana Créditos Gratis")
@@ -516,7 +699,6 @@ else:
 
     elif menu == "📝 Facturar":
         st.title("📝 Nueva Cuenta")
-        
         c = conn.cursor()
         try: data_user = c.execute("SELECT creditos, verificado_biometria, premium_hasta FROM usuarios WHERE email=?", (usuario,)).fetchone()
         except:
@@ -526,7 +708,6 @@ else:
         creditos = data_user[0] if data_user else 0
         verificado = data_user[1] if data_user else 0
         premium_date = data_user[2] if data_user else None
-        
         es_premium = False
         if premium_date:
             try: 
@@ -539,9 +720,8 @@ else:
             
             cls = pd.read_sql_query(f"SELECT * FROM clientes WHERE user_email='{usuario}'", conn)
             bks = pd.read_sql_query(f"SELECT * FROM cuentas_bancarias WHERE user_email='{usuario}'", conn)
-            
             if cls.empty or bks.empty: st.warning("⚠️ Primero configura clientes y bancos."); st.stop()
-                
+            
             c.execute(f"SELECT MAX(consecutivo) FROM facturas WHERE user_email='{usuario}'"); last = c.fetchone()[0]; prox = 1 if last is None else last + 1
             c1, c2 = st.columns([2,1])
             with c1:
@@ -553,22 +733,16 @@ else:
                 st.markdown(f"##### Documento #{prox}")
                 bk_s = st.selectbox("Banco Destino", bks.apply(lambda x: f"{x['id']} - {x['banco']}", axis=1)); bid = int(bk_s.split(' - ')[0])
                 st.markdown("##### Impuestos")
-                rf = st.checkbox("Retención en la Fuente", True); rf_v = 0
+                rf = st.checkbox("Retención en la Fuente", True); rf_v = val*0.1 if rf else 0
                 if rf:
                     trf = st.selectbox("Tarifa", ["Honorarios (10%)", "Honorarios Declarante (11%)", "Servicios (4%)", "Servicios Declarante (6%)", "Arrendamiento (3.5%)"])
-                    tasa = 0.10
-                    if "11%" in trf: tasa=0.11
-                    elif "(4%)" in trf: tasa=0.04
-                    elif "(6%)" in trf: tasa=0.06
-                    elif "3.5%" in trf: tasa=0.035
-                    rf_v = val*tasa
+                    tasa = 0.10; rf_v = val*tasa
                 ica = st.checkbox("ReteICA"); ica_v=0; cica="N/A"
                 if ica: cica=st.text_input("Ciudad ICA", cli_o['ciudad_cliente']); tica=st.number_input("Tarifa (x1000)", 9.66); ica_v=(val*tica)/1000
                 neto = val-rf_v-ica_v; st.divider(); st.metric("TOTAL A COBRAR", f"${neto:,.0f}")
 
             if st.button("⚡ GENERAR DOCUMENTO"):
-                if not es_premium:
-                    c.execute("UPDATE usuarios SET creditos = creditos - 1 WHERE email=?", (usuario,))
+                if not es_premium: c.execute("UPDATE usuarios SET creditos = creditos - 1 WHERE email=?", (usuario,))
                 c.execute("INSERT INTO facturas (user_email, consecutivo, fecha, cliente_nombre, cliente_nit, concepto, valor_base, val_retefuente, val_reteica, neto_pagar, estado, banco_snapshot_id, ciudad_ica, ciudad) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (usuario, prox, datetime.now().strftime('%Y-%m-%d'), cli, cli_o['nit_cliente'], conc, val, rf_v, ica_v, neto, "Pendiente", bid, cica, ciudad_emision)); conn.commit()
                 p = motor_pdf(usuario, cli, cli_o['nit_cliente'], conc, val, rf_v, ica_v, neto, ciudad_emision, bid, prox, datetime.now().strftime('%Y-%m-%d'))
                 st.session_state['pr'] = p; st.session_state['pn'] = f"Cuenta_{prox}.pdf"; st.session_state['ml'] = cli_o['email_cliente']; st.success("¡Creado con éxito!"); st.rerun()
@@ -581,24 +755,22 @@ else:
         else:
             if verificado == 1:
                 st.error("🚫 Se han agotado tus créditos gratuitos.")
-                st.info("💎 Como ya verificaste tu identidad, puedes activar un plan ILIMITADO.")
-                st.write("Ve a **Mi Perfil > 💎 Suscripción** para activar un plan.")
+                st.info("💎 Como ya verificaste tu identidad, puedes activar un plan ILIMITADO en **Mi Perfil > 💎 Suscripción**.")
             else:
                 st.error("🚫 Tus créditos gratuitos se han agotado.")
-                st.warning("🔒 Para continuar, necesitamos verificar que eres una persona real.")
-                st.markdown("---")
+                st.warning("🔒 Para continuar, verifica tu identidad.")
                 col_bio1, col_bio2 = st.columns(2)
                 with col_bio1: foto_doc = st.file_uploader("Sube foto de tu Cédula/NIT", type=['jpg','png','jpeg'])
                 with col_bio2: foto_selfie = st.camera_input("Tómate una foto ahora")
                 if st.button("🔍 Validar Identidad"):
                     if foto_doc and foto_selfie:
-                        with st.spinner("Analizando biometría con IA..."):
+                        with st.spinner("Analizando..."):
                             exito, mensaje = comparar_rostros(foto_doc.getvalue(), foto_selfie.getvalue())
                             if exito:
-                                st.balloons(); st.success("✅ Identidad Verificada. Te hemos regalado 1 crédito extra.")
+                                st.balloons(); st.success("✅ Verificado. +1 Crédito gratis.")
                                 c.execute("UPDATE usuarios SET verificado_biometria=1, creditos=1 WHERE email=?", (usuario,)); conn.commit(); st.rerun()
                             else: st.error(mensaje)
-                    else: st.warning("⚠️ Debes completar ambos pasos.")
+                    else: st.warning("⚠️ Faltan fotos.")
 
     elif menu == "📊 Panel de Control":
         st.title("📊 Panel Financiero")
@@ -609,15 +781,9 @@ else:
             pagado = df_ok[df_ok['estado'] == 'Pagada']['neto_pagar'].sum()
             pendiente = total - pagado
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Emitido", f"${total:,.0f}")
-            k2.metric("Cobrado", f"${pagado:,.0f}")
-            k3.metric("Pendiente", f"${pendiente:,.0f}", delta="- Por cobrar", delta_color="inverse")
-            k4.metric("Utilidad", f"${pagado:,.0f}", delta="+ Real", delta_color="normal")
-            st.markdown("---")
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                st.subheader("Últimos Movimientos")
-                st.dataframe(df[['consecutivo','cliente_nombre','neto_pagar','estado']], hide_index=True, use_container_width=True)
+            k1.metric("Emitido", f"${total:,.0f}"); k2.metric("Cobrado", f"${pagado:,.0f}"); k3.metric("Pendiente", f"${pendiente:,.0f}"); k4.metric("Utilidad", f"${pagado:,.0f}")
+            st.markdown("---"); c1, c2 = st.columns([3, 1])
+            with c1: st.subheader("Últimos Movimientos"); st.dataframe(df[['consecutivo','cliente_nombre','neto_pagar','estado']], hide_index=True, use_container_width=True)
             with c2:
                 st.subheader("Acciones")
                 lista_fac = df.apply(lambda x: f"#{x['consecutivo']} - {x['cliente_nombre']}", axis=1)
@@ -627,3 +793,73 @@ else:
                     id_fac = df.iloc[lista_fac[lista_fac == fac_elegida].index[0]]['id']
                     c.execute("UPDATE facturas SET estado=? WHERE id=?", (nuevo_est, int(id_fac))); conn.commit(); st.success("Ok"); st.rerun()
         else: st.info("No hay datos financieros aún.")
+        
+    # ==========================
+    # 🔧 PANEL ADMINISTRADOR
+    # ==========================
+    elif menu == "🔧 ADMINISTRADOR":
+        st.title("🔧 Panel de Administrador")
+        st.write("Gestiona las suscripciones manualmente.")
+        email_buscar = st.text_input("Buscar usuario por correo:")
+        if email_buscar:
+            c = conn.cursor()
+            user_found = c.execute("SELECT nombre, creditos, premium_hasta FROM usuarios WHERE email=?", (email_buscar,)).fetchone()
+            if user_found:
+                st.success(f"Usuario: {user_found[0]} | Créditos: {user_found[1]} | Vence: {user_found[2]}")
+                st.markdown("---"); st.subheader("Activar Plan Manualmente")
+                plan_activar = st.selectbox("Seleccionar Plan", ["Semanal (7 días)", "Mensual (30 días)", "Trimestral (90 días)", "Semestral (180 días)", "Anual (365 días)"])
+                if st.button("✅ Activar Plan"):
+                    dias = 7
+                    if "Mensual" in plan_activar: dias = 30
+                    if "Trimestral" in plan_activar: dias = 90
+                    if "Semestral" in plan_activar: dias = 180
+                    if "Anual" in plan_activar: dias = 365
+                    nueva_fecha = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d')
+                    c.execute("UPDATE usuarios SET premium_hasta=? WHERE email=?", (nueva_fecha, email_buscar)); conn.commit(); st.success(f"Plan activado hasta: {nueva_fecha}")
+            else: st.error("Usuario no encontrado.")
+
+    # ==========================
+    # 📞 SOPORTE (NUEVO)
+    # ==========================
+    elif menu == "📞 Soporte":
+        st.title("📞 Centro de Soporte")
+        st.markdown("¿Tienes dudas o problemas? Estamos aquí para ayudarte.")
+
+        c1, c2 = st.columns([1, 1])
+
+        with c1:
+            st.subheader("📩 Envíanos un mensaje")
+            with st.form("contact_form"):
+                asunto = st.selectbox("Motivo", ["Soporte Técnico", "Pagos y Suscripción", "Reportar Error", "Otro"])
+                mensaje = st.text_area("Detalle de tu solicitud")
+                # El botón de envío ahora tendrá el diseño cian correcto con letras negras
+                enviar = st.form_submit_button("Enviar Mensaje")
+                if enviar:
+                    cuerpo = f"Usuario: {usuario}\nMotivo: {asunto}\n\nMensaje:\n{mensaje}"
+                    msg = MIMEMultipart()
+                    msg['From'] = SMTP_EMAIL
+                    msg['To'] = "atomoapp.co@gmail.com" 
+                    msg['Subject'] = f"Soporte Átomo: {asunto}"
+                    msg.attach(MIMEText(cuerpo, 'plain'))
+                    try:
+                        server = smtplib.SMTP('smtp.gmail.com', 587)
+                        server.starttls()
+                        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                        server.sendmail(SMTP_EMAIL, "atomoapp.co@gmail.com", msg.as_string())
+                        server.quit()
+                        st.success("✅ Mensaje enviado. Te responderemos pronto.")
+                    except:
+                        st.error("Error enviando mensaje. Escríbenos por WhatsApp.")
+
+        with c2:
+            st.subheader("💬 Chat en Vivo")
+            st.info("Para una atención inmediata, escríbenos a WhatsApp.")
+            # El botón de enlace ahora tendrá el diseño cian correcto con letras negras
+            st.link_button("📲 Abrir WhatsApp", "https://wa.me/573000000000")
+
+            st.markdown("---")
+            st.subheader("❓ Preguntas Frecuentes")
+            with st.expander("¿Cómo activo mi plan después de pagar?"):
+                st.write("El sistema lo activa automáticamente al finalizar el pago en Mercado Pago. Si no se activa, envíanos el comprobante por WhatsApp.")
+            with st.expander("¿Cómo funcionan los créditos gratuitos?"):
+                st.write("Tienes 5 créditos al registrarte. Cada documento generado gasta 1 crédito. Si invitas amigos, ganas más.")
