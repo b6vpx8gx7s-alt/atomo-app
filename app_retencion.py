@@ -710,6 +710,46 @@ if st.session_state['usuario_activo'] is None:
                 else:
                     st.error("❌ Correo o contraseña incorrectos.")
 
+        st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("¿Olvidaste tu contraseña?"):
+                correo_reset = st.text_input("Ingresa tu correo", key="correo_reset")
+                if st.button("Enviar código de recuperación"):
+                    _c = conn.cursor()
+                    user_reset = _c.execute("SELECT email FROM usuarios WHERE email=?", (correo_reset.lower().strip(),)).fetchone()
+                    if user_reset:
+                        otp_reset = str(random.randint(100000, 999999))
+                        st.session_state['reset_otp'] = otp_reset
+                        st.session_state['reset_email'] = correo_reset.lower().strip()
+                        st.session_state['reset_paso'] = 2
+                        st.session_state['otp_ts'] = datetime.now()
+                        if enviar_codigo_otp(correo_reset, otp_reset):
+                            st.success("✅ Código enviado a tu correo.")
+                            st.rerun()
+                    else:
+                        st.error("❌ No encontramos ese correo.")
+
+            if st.session_state.get('reset_paso') == 2:
+                st.markdown("---")
+                st.markdown("#### 🔑 Restablecer contraseña")
+                otp_r = st.text_input("Código de 6 dígitos", key="otp_r")
+                nueva_pass = st.text_input("Nueva contraseña", type="password", key="nueva_pass")
+                confirmar_pass = st.text_input("Confirmar contraseña", type="password", key="confirmar_pass")
+                if st.button("Restablecer contraseña"):
+                    if otp_r == st.session_state.get('reset_otp'):
+                        if nueva_pass == confirmar_pass and len(nueva_pass) >= 6:
+                            _c = conn.cursor()
+                            _c.execute("UPDATE usuarios SET password=? WHERE email=?",
+                                      (make_hashes(nueva_pass), st.session_state['reset_email']))
+                            conn.commit()
+                            st.success("✅ Contraseña actualizada. Ya puedes iniciar sesión.")
+                            st.session_state['reset_paso'] = None
+                            st.session_state['reset_otp'] = None
+                        elif nueva_pass != confirmar_pass:
+                            st.error("❌ Las contraseñas no coinciden.")
+                        else:
+                            st.error("❌ La contraseña debe tener al menos 6 caracteres.")
+                    else:
+                        st.error("❌ Código incorrecto.")
         # ---------- REGISTRO ----------
         with t_reg:
             st.markdown("<br>", unsafe_allow_html=True)
