@@ -322,7 +322,7 @@ def enviar_codigo_otp(para, codigo):
         msg = MIMEMultipart()
         msg['From'] = SMTP_EMAIL
         msg['To'] = para
-        msg['Subject'] = f"Tu código de verificación Átomo: {codigo}"
+        msg['Subject'] = f"Tu codigo de verificacion Atomo: {codigo}"
         cuerpo = f"Bienvenido a Atomo.co\n\nTu codigo de verificacion es: {codigo}\n\nEste codigo expira en 10 minutos."
         msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
         server = smtplib.SMTP('smtp.gmail.com', 587)
