@@ -1438,6 +1438,14 @@ else:
     # ==========================================
     # 📞 SOPORTE
     # ==========================================
+    # ACTIVACIÓN ADMIN TEMPORAL — borrar después de activar
+    if usuario == "atomoapp.co@gmail.com":
+        if st.sidebar.button("🔑 Activar Admin"):
+            c.execute("UPDATE usuarios SET rol='admin' WHERE email=?", (usuario,))
+            conn.commit()
+            st.sidebar.success("✅ Rol admin activado")
+            st.rerun()
+
     elif menu == "📞 Soporte":
         st.title("📞 Centro de Soporte")
         st.markdown("¿Tienes dudas o problemas? Estamos aquí para ayudarte.")
