@@ -146,9 +146,16 @@ st.markdown("""
 
     div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #000000 !important; }
     div[data-testid="stSelectbox"] div[data-baseweb="select"] div { color: #000000 !important; }
+    ul[data-baseweb="menu"] { background-color: #FFFFFF !important; }
     ul[data-baseweb="menu"] li { background-color: #FFFFFF !important; color: #000000 !important; }
     ul[data-baseweb="menu"] li div, ul[data-baseweb="menu"] li span { color: #000000 !important; }
-
+    div[data-baseweb="popover"] { background-color: #FFFFFF !important; }
+    div[data-baseweb="popover"] > div { background-color: #FFFFFF !important; }
+    div[data-baseweb="popover"] ul { background-color: #FFFFFF !important; }
+    div[data-baseweb="popover"] li { background-color: #FFFFFF !important; color: #000000 !important; }
+    div[data-baseweb="popover"] li:hover { background-color: #F0F9FF !important; }
+    [role="listbox"] { background-color: #FFFFFF !important; }
+    [role="option"] { background-color: #FFFFFF !important; color: #000000 !important; }
     [data-testid="stCodeBlock"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
