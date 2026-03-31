@@ -156,6 +156,7 @@ st.markdown("""
     div[data-baseweb="popover"] li:hover { background-color: #F0F9FF !important; }
     [role="listbox"] { background-color: #FFFFFF !important; }
     [role="option"] { background-color: #FFFFFF !important; color: #000000 !important; }
+
     [data-testid="stCodeBlock"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -267,7 +268,6 @@ def init_db():
         referido_por TEXT, tipo_documento TEXT, foto_documento BLOB,
         verificado_biometria INTEGER DEFAULT 0
     )''')
-    # Migraciones seguras (por si la DB ya existía)
     for col, tipo in [
         ("verificado_biometria", "INTEGER DEFAULT 0"),
         ("tipo_documento", "TEXT"),
@@ -310,6 +310,10 @@ if 'pr' not in st.session_state: st.session_state['pr'] = None
 if 'pn' not in st.session_state: st.session_state['pn'] = "Doc.pdf"
 if 'ml' not in st.session_state: st.session_state['ml'] = ""
 if 'google_creds' not in st.session_state: st.session_state['google_creds'] = None
+if 'reset_paso' not in st.session_state: st.session_state['reset_paso'] = None
+if 'reset_otp' not in st.session_state: st.session_state['reset_otp'] = None
+if 'reset_email' not in st.session_state: st.session_state['reset_email'] = None
+if 'otp_ts' not in st.session_state: st.session_state['otp_ts'] = None
 
 def es_numero(texto):
     return bool(re.match(r'^\d+$', str(texto))) if texto else False
@@ -382,7 +386,6 @@ def get_google_user_info_and_creds(code):
 
 def enviar_email_con_gmail(creds, para, asunto, cuerpo, pdf_bytes, nombre_archivo):
     if not GOOGLE_DISPONIBLE or not creds:
-        # Fallback a SMTP si no hay creds de Google
         return enviar_email_smtp(para, asunto, cuerpo, pdf_bytes, nombre_archivo)
     try:
         service = build('gmail', 'v1', credentials=creds)
@@ -402,7 +405,7 @@ def enviar_email_con_gmail(creds, para, asunto, cuerpo, pdf_bytes, nombre_archiv
 
 def enviar_email_smtp(para, asunto, cuerpo, pdf_bytes=None, nombre_archivo=None):
     if not SMTP_EMAIL or not SMTP_PASSWORD:
-        st.error("⚠️ Servicio de correo no configurado.")
+        st.error("Servicio de correo no configurado.")
         return False
     try:
         msg = MIMEMultipart()
@@ -445,7 +448,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf = FPDF('P', 'mm', 'A4')
     pdf.add_page()
 
-    # Logo
     start_x_logo = 15
     target_h_logo = 20
     logo_width = 0
@@ -490,7 +492,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf.cell(0, 5, "Documento soporte para no obligados a facturar", ln=1, align='L')
     pdf.ln(5)
 
-    # Cliente
     pdf.set_fill_color(248, 249, 250)
     pdf.set_draw_color(220, 220, 220)
     pdf.rect(15, pdf.get_y(), 180, 25, 'FD')
@@ -507,7 +508,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf.cell(100, 6, nit_cli, ln=1)
     pdf.ln(15)
 
-    # Tabla
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(255, 255, 255)
     pdf.set_fill_color(R, G, B)
@@ -537,7 +537,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf.cell(50, 10, f"${neto:,.0f}", 1, 1, 'R')
     pdf.ln(10)
 
-    # Datos bancarios
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 6, "DATOS PARA PAGO:", ln=1)
@@ -560,7 +559,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
         except Exception:
             pass
 
-    # Firma
     pdf.set_auto_page_break(False)
     Y_FIRMA = 225
     if u[5]:
@@ -581,7 +579,6 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf.set_font("Arial", '', 8)
     pdf.cell(60, 5, f"CC/NIT: {u[3]}", align='C')
 
-    # Footer
     Y_FOOTER = 265
     pdf.set_draw_color(R, G, B)
     pdf.set_line_width(0.5)
@@ -604,18 +601,10 @@ if 'registro_paso' not in st.session_state:
     st.session_state['registro_paso'] = 1
 if 'temp_reg_data' not in st.session_state:
     st.session_state['temp_reg_data'] = {}
-if 'otp_ts' not in st.session_state:
-    st.session_state['otp_ts'] = None
-if 'reset_paso' not in st.session_state:
-    st.session_state['reset_paso'] = None
-if 'reset_otp' not in st.session_state:
-    st.session_state['reset_otp'] = None
-if 'reset_email' not in st.session_state:
-    st.session_state['reset_email'] = None
 
 ref_from_url = st.query_params.get("ref", "")
 
-# 🔔 DETECCIÓN DE PAGO AUTOMÁTICO (Mercado Pago Redirección)
+# 🔔 DETECCIÓN DE PAGO AUTOMÁTICO
 if st.session_state['usuario_activo'] and "status" in st.query_params:
     status = st.query_params["status"]
     plan_comprado = st.query_params.get("plan", "Desconocido")
@@ -628,7 +617,7 @@ if st.session_state['usuario_activo'] and "status" in st.query_params:
                    (new_date, st.session_state['usuario_activo']))
         conn.commit()
         st.balloons()
-        st.toast(f"✅ ¡Pago Exitoso! Plan {plan_comprado} activado hasta {new_date}.", icon="💎")
+        st.toast(f"✅ Pago Exitoso! Plan {plan_comprado} activado hasta {new_date}.", icon="💎")
         st.query_params.clear()
         time.sleep(2)
         st.rerun()
@@ -672,11 +661,8 @@ if st.session_state['usuario_activo'] is None:
 
         t_log, t_reg = st.tabs(["INICIAR SESIÓN", "REGISTRARSE"])
 
-        # ---------- LOGIN ----------
         with t_log:
             st.markdown("<br>", unsafe_allow_html=True)
-
-            # Botón Google
             if GOOGLE_DISPONIBLE:
                 url = get_google_auth_url()
                 if url:
@@ -715,7 +701,7 @@ if st.session_state['usuario_activo'] is None:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("¿Olvidaste tu contraseña?"):
                 correo_reset = st.text_input("Ingresa tu correo registrado", key="correo_reset")
-                if st.button("Enviar código de recuperación"):
+                if st.button("Enviar codigo de recuperacion"):
                     _c = conn.cursor()
                     user_reset = _c.execute(
                         "SELECT email FROM usuarios WHERE email=?",
@@ -728,19 +714,19 @@ if st.session_state['usuario_activo'] is None:
                         st.session_state['reset_paso'] = 2
                         st.session_state['otp_ts'] = datetime.now()
                         if enviar_codigo_otp(correo_reset, otp_reset):
-                            st.success("✅ Código enviado a tu correo.")
+                            st.success("✅ Codigo enviado a tu correo.")
                             st.rerun()
                     else:
                         st.error("❌ No encontramos ese correo registrado.")
 
             if st.session_state.get('reset_paso') == 2:
                 st.markdown("---")
-                st.markdown("#### 🔑 Restablecer contraseña")
-                st.info(f"Código enviado a: **{st.session_state.get('reset_email', '')}**")
-                otp_r = st.text_input("Código de 6 dígitos", key="otp_r")
-                nueva_pass = st.text_input("Nueva contraseña", type="password", key="nueva_pass")
-                confirmar_pass = st.text_input("Confirmar contraseña", type="password", key="confirmar_pass")
-                if st.button("Restablecer contraseña"):
+                st.markdown("#### 🔑 Restablecer contrasena")
+                st.info(f"Codigo enviado a: **{st.session_state.get('reset_email', '')}**")
+                otp_r = st.text_input("Codigo de 6 digitos", key="otp_r")
+                nueva_pass = st.text_input("Nueva contrasena", type="password", key="nueva_pass")
+                confirmar_pass = st.text_input("Confirmar contrasena", type="password", key="confirmar_pass")
+                if st.button("Restablecer contrasena"):
                     if otp_r == st.session_state.get('reset_otp'):
                         if nueva_pass == confirmar_pass and len(nueva_pass) >= 6:
                             _c = conn.cursor()
@@ -749,42 +735,41 @@ if st.session_state['usuario_activo'] is None:
                                 (make_hashes(nueva_pass), st.session_state['reset_email'])
                             )
                             conn.commit()
-                            st.success("✅ Contraseña actualizada. Ya puedes iniciar sesión.")
+                            st.success("✅ Contrasena actualizada. Ya puedes iniciar sesion.")
                             st.session_state['reset_paso'] = None
                             st.session_state['reset_otp'] = None
                         elif nueva_pass != confirmar_pass:
-                            st.error("❌ Las contraseñas no coinciden.")
+                            st.error("❌ Las contrasenas no coinciden.")
                         else:
-                            st.error("❌ La contraseña debe tener al menos 6 caracteres.")
+                            st.error("❌ La contrasena debe tener al menos 6 caracteres.")
                     else:
-                        st.error("❌ Código incorrecto.")
+                        st.error("❌ Codigo incorrecto.")
                 if st.button("← Cancelar"):
                     st.session_state['reset_paso'] = None
                     st.rerun()
 
-        # ---------- REGISTRO ----------
         with t_reg:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.session_state['registro_paso'] == 1:
                 rn = st.text_input("Nombre Completo")
-                tipo_doc_opts = ["Cédula de Ciudadanía", "NIT", "Tarjeta de Identidad", "Pasaporte", "Cédula de Extranjería"]
-                r_td = st.selectbox("Tipo de Identificación", tipo_doc_opts)
-                r_nit = st.text_input("Número de Documento (Sin puntos ni guiones)")
+                tipo_doc_opts = ["Cedula de Ciudadania", "NIT", "Tarjeta de Identidad", "Pasaporte", "Cedula de Extranjeria"]
+                r_td = st.selectbox("Tipo de Identificacion", tipo_doc_opts)
+                r_nit = st.text_input("Numero de Documento (Sin puntos ni guiones)")
                 r_email = st.text_input("Tu Correo")
-                rp = st.text_input("Define tu Contraseña", type="password")
-                ref_code = st.text_input("¿Tienes un código de referido? (Opcional)", value=ref_from_url)
+                rp = st.text_input("Define tu Contrasena", type="password")
+                ref_code = st.text_input("Tienes un codigo de referido? (Opcional)", value=ref_from_url)
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("ENVIAR CÓDIGO DE VERIFICACIÓN"):
+                if st.button("ENVIAR CODIGO DE VERIFICACION"):
                     if not rn or not r_nit or not r_email or not rp:
-                        st.error("⚠️ Todos los campos son obligatorios.")
+                        st.error("Todos los campos son obligatorios.")
                     elif not es_numero(r_nit):
-                        st.error("⚠️ El número de documento debe contener solo números.")
+                        st.error("El numero de documento debe contener solo numeros.")
                     else:
                         _c = conn.cursor()
                         if _c.execute("SELECT email FROM usuarios WHERE nit=?", (r_nit,)).fetchone():
-                            st.error(f"⚠️ Este documento ({r_nit}) ya está registrado.")
+                            st.error(f"Este documento ({r_nit}) ya esta registrado.")
                         elif _c.execute("SELECT email FROM usuarios WHERE email=?", (r_email.lower().strip(),)).fetchone():
-                            st.error("⚠️ Este correo ya está registrado.")
+                            st.error("Este correo ya esta registrado.")
                         else:
                             otp = str(random.randint(100000, 999999))
                             st.session_state['temp_reg_data'] = {
@@ -797,22 +782,21 @@ if st.session_state['usuario_activo'] is None:
                                 st.session_state['registro_paso'] = 2
                                 st.rerun()
                             else:
-                                st.error("Error al enviar el correo. Verifica tu configuración SMTP.")
+                                st.error("Error al enviar el correo. Verifica tu configuracion SMTP.")
 
             elif st.session_state['registro_paso'] == 2:
                 datos = st.session_state['temp_reg_data']
-                st.info(f"📧 Revisa tu correo: **{datos['e']}**")
-                # OTP expira en 10 minutos
+                st.info(f"Revisa tu correo: **{datos['e']}**")
                 if st.session_state['otp_ts']:
                     restante = 600 - int((datetime.now() - st.session_state['otp_ts']).total_seconds())
                     if restante > 0:
-                        st.caption(f"⏱️ El código expira en {restante // 60}:{restante % 60:02d}")
+                        st.caption(f"El codigo expira en {restante // 60}:{restante % 60:02d}")
                     else:
-                        st.error("⏰ El código expiró. Vuelve a registrarte.")
+                        st.error("El codigo expiro. Vuelve a registrarte.")
                         st.session_state['registro_paso'] = 1
                         st.rerun()
 
-                otp_in = st.text_input("Ingresa el código de 6 dígitos")
+                otp_in = st.text_input("Ingresa el codigo de 6 digitos")
                 if st.button("VERIFICAR Y CREAR MI CUENTA"):
                     if otp_in == datos['otp']:
                         mi_nuevo_codigo = generar_codigo_ref(datos['n'])
@@ -835,18 +819,18 @@ if st.session_state['usuario_activo'] is None:
                              creditos_iniciales, mi_nuevo_codigo, padrino, datos['td'], datos['nid'])
                         )
                         conn.commit()
-                        st.success("🎉 ¡Bienvenido a Átomo! Registro exitoso. Ya puedes iniciar sesión.")
+                        st.success("Bienvenido a Atomo! Registro exitoso. Ya puedes iniciar sesion.")
                         st.session_state['registro_paso'] = 1
                         st.session_state['temp_reg_data'] = {}
                     else:
-                        st.error("❌ Código incorrecto. Intenta de nuevo.")
+                        st.error("Codigo incorrecto. Intenta de nuevo.")
 
                 if st.button("← Volver y corregir datos"):
                     st.session_state['registro_paso'] = 1
                     st.rerun()
 
 # ==========================================
-# 🏠 APP PRINCIPAL (USUARIO AUTENTICADO)
+# 🏠 APP PRINCIPAL
 # ==========================================
 else:
     usuario = st.session_state['usuario_activo']
@@ -854,7 +838,7 @@ else:
     u_data = c.execute('SELECT * FROM usuarios WHERE email=?', (usuario,)).fetchone()
 
     if not u_data:
-        st.error("Sesión inválida. Por favor inicia sesión de nuevo.")
+        st.error("Sesion invalida. Por favor inicia sesion de nuevo.")
         st.session_state['usuario_activo'] = None
         st.rerun()
 
@@ -888,7 +872,7 @@ else:
         if es_premium:
             st.success(f"💎 PREMIUM\nVence: {premium_hasta}")
         else:
-            st.info(f"⚡ Créditos disponibles: {u_data[13]}")
+            st.info(f"⚡ Creditos disponibles: {u_data[13]}")
 
         st.markdown("---")
         ADMIN_EMAIL = "atomoapp.co@gmail.com"
@@ -897,9 +881,18 @@ else:
         opciones_menu = ["📊 Panel de Control", "🗂️ Historial", "👥 Clientes", "📝 Facturar", "⚙️ Mi Perfil", "📞 Soporte"]
         if es_admin:
             opciones_menu.append("🔧 ADMINISTRADOR")
-        menu = st.radio("Navegación", opciones_menu)
+        menu = st.radio("Navegacion", opciones_menu)
         st.markdown("---")
-        if st.button("Cerrar Sesión"):
+
+        # Boton admin — solo para el correo admin y solo si aun no tiene rol admin
+        if usuario == ADMIN_EMAIL and u_data[7] != "admin":
+            if st.button("🔑 Activar Admin"):
+                c.execute("UPDATE usuarios SET rol='admin' WHERE email=?", (usuario,))
+                conn.commit()
+                st.success("✅ Rol admin activado")
+                st.rerun()
+
+        if st.button("Cerrar Sesion"):
             st.session_state['usuario_activo'] = None
             st.session_state['google_creds'] = None
             st.rerun()
@@ -908,11 +901,11 @@ else:
     # ⚙️ MI PERFIL
     # ==========================================
     if menu == "⚙️ Mi Perfil":
-        st.title("⚙️ Configuración de Perfil")
-        t1, t2, t3, t4, t5, t6 = st.tabs(["🎨 MARCA", "📝 DATOS", "🏦 BANCOS", "💎 SUSCRIPCIÓN", "🎁 REFERIDOS", "🔐 VERIFICACIÓN"])
+        st.title("⚙️ Configuracion de Perfil")
+        t1, t2, t3, t4, t5, t6, t7 = st.tabs(["🎨 MARCA", "📝 DATOS", "🏦 BANCOS", "💎 SUSCRIPCION", "🎁 REFERIDOS", "🔐 VERIFICACION", "🔑 CONTRASENA"])
 
         with t1:
-            st.markdown("#### 🎨 Personalización de Marca")
+            st.markdown("#### 🎨 Personalizacion de Marca")
             with st.form("estilo"):
                 c1, c2 = st.columns(2)
                 with c1:
@@ -936,16 +929,16 @@ else:
                 st.image(u_data[6], width=150)
 
         with t2:
-            st.markdown("#### 📝 Información Legal")
+            st.markdown("#### 📝 Informacion Legal")
             with st.form("datos"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    n = st.text_input("Razón Social / Nombre", u_data[2])
+                    n = st.text_input("Razon Social / Nombre", u_data[2])
                     ni = st.text_input("NIT / Documento", u_data[3] if u_data[3] else "")
                 with c2:
                     tl = st.text_input("Celular", u_data[4] if u_data[4] else "")
-                    em = st.text_input("Email Público", u_data[11] if len(u_data) > 11 and u_data[11] else u_data[0])
-                di = st.text_input("Dirección", u_data[10] if len(u_data) > 10 and u_data[10] else "")
+                    em = st.text_input("Email Publico", u_data[11] if len(u_data) > 11 and u_data[11] else u_data[0])
+                di = st.text_input("Direccion", u_data[10] if len(u_data) > 10 and u_data[10] else "")
                 firma_up = st.file_uploader("Firma Digital (Imagen PNG/JPG)", type=['png', 'jpg'])
                 if st.form_submit_button("Actualizar Datos"):
                     q = "UPDATE usuarios SET nombre=?, nit=?, telefono=?, direccion=?, email_contacto=?"
@@ -966,16 +959,16 @@ else:
                 c1, c2 = st.columns(2)
                 with c1:
                     b = st.text_input("Banco")
-                    nm = st.text_input("Número de Cuenta")
+                    nm = st.text_input("Numero de Cuenta")
                 with c2:
                     t_tipo = st.selectbox("Tipo", ["Ahorros", "Corriente"])
                     br = st.text_input("Llave Bre-B (Opcional)")
-                qr = st.file_uploader("Código QR (Imagen)", type=['png', 'jpg'])
+                qr = st.file_uploader("Codigo QR (Imagen)", type=['png', 'jpg'])
                 if st.form_submit_button("Agregar Nueva Cuenta"):
                     if not b or not nm:
-                        st.error("⚠️ Banco y número de cuenta son obligatorios.")
+                        st.error("Banco y numero de cuenta son obligatorios.")
                     elif not es_numero(nm):
-                        st.error("⚠️ El número de cuenta debe contener solo dígitos.")
+                        st.error("El numero de cuenta debe contener solo digitos.")
                     else:
                         qrb = qr.getvalue() if qr else None
                         c.execute(
@@ -991,7 +984,7 @@ else:
                 conn, params=(usuario,)
             )
             if bks_list.empty:
-                st.info("Aún no tienes cuentas bancarias registradas.")
+                st.info("Aun no tienes cuentas bancarias registradas.")
             for i, r in bks_list.iterrows():
                 with st.expander(f"🏦 {r['banco']} — {r['numero_cuenta']}"):
                     if st.button("🗑️ Eliminar esta cuenta", key=f"del_{r['id']}"):
@@ -1000,13 +993,11 @@ else:
                         st.rerun()
 
         with t4:
-            st.markdown("### 💎 Planes de Suscripción")
+            st.markdown("### 💎 Planes de Suscripcion")
             if es_premium:
                 st.success(f"✅ Ya eres Premium. Tu plan vence el **{premium_hasta}**.")
             else:
-                st.info("Suscríbete para tener uso **ILIMITADO** de documentos.")
-
-            APP_URL = st.secrets.get("app", {}).get("redirect_uri", "https://atomo-app.streamlit.app/")
+                st.info("Suscribete para tener uso **ILIMITADO** de documentos.")
 
             def tarjeta_precio(titulo, precio, desc, plan_key):
                 link_pago_map = {
@@ -1028,21 +1019,20 @@ else:
                 st.link_button(f"💳 Pagar {titulo}", link)
 
             p1, p2, p3 = st.columns(3)
-            with p1: tarjeta_precio("SEMANAL", "8.000", "Acceso 7 días", "Semanal")
-            with p2: tarjeta_precio("MENSUAL", "20.000", "Acceso 30 días", "Mensual")
-            with p3: tarjeta_precio("TRIMESTRAL", "50.000", "Acceso 90 días", "Trimestral")
+            with p1: tarjeta_precio("SEMANAL", "8.000", "Acceso 7 dias", "Semanal")
+            with p2: tarjeta_precio("MENSUAL", "20.000", "Acceso 30 dias", "Mensual")
+            with p3: tarjeta_precio("TRIMESTRAL", "50.000", "Acceso 90 dias", "Trimestral")
             p4, p5 = st.columns(2)
-            with p4: tarjeta_precio("SEMESTRAL", "93.000", "Acceso 180 días", "Semestral")
-            with p5: tarjeta_precio("ANUAL", "156.000", "Acceso 365 días", "Anual")
-
+            with p4: tarjeta_precio("SEMESTRAL", "93.000", "Acceso 180 dias", "Semestral")
+            with p5: tarjeta_precio("ANUAL", "156.000", "Acceso 365 dias", "Anual")
             st.markdown("---")
-            st.caption("🔒 Pagos seguros vía Mercado Pago. Activación automática inmediata.")
+            st.caption("🔒 Pagos seguros via Mercado Pago. Activacion automatica inmediata.")
 
         with t5:
-            st.markdown("#### 🎁 Gana Créditos Gratis")
-            st.info("Invita amigos. Cuando se registren con tu código, **ambos ganan 5 créditos**.")
+            st.markdown("#### 🎁 Gana Creditos Gratis")
+            st.info("Invita amigos. Cuando se registren con tu codigo, **ambos ganan 5 creditos**.")
             mi_codigo = u_data[15] if len(u_data) > 15 and u_data[15] else "SIN-CODIGO"
-            APP_BASE = st.secrets.get("app", {}).get("redirect_uri", "https://atomo-app.streamlit.app/")
+            APP_BASE = st.secrets.get("app", {}).get("redirect_uri", "https://atomo-app-mzfqjvym9gu3wxb66dqueb.streamlit.app/")
             link_ref = f"{APP_BASE}?ref={mi_codigo}"
             st.code(link_ref, language="text")
             st.divider()
@@ -1052,28 +1042,28 @@ else:
                 for r in refs:
                     st.success(f"👤 {r[0]}")
             else:
-                st.warning("Aún no tienes referidos. ¡Comparte tu link!")
+                st.warning("Aun no tienes referidos. Comparte tu link!")
 
         with t6:
-            st.markdown("#### 🔐 Verificación de Identidad")
+            st.markdown("#### 🔐 Verificacion de Identidad")
             estado_bio = c.execute("SELECT verificado_biometria FROM usuarios WHERE email=?", (usuario,)).fetchone()
             es_verificado = estado_bio[0] if estado_bio else 0
             if es_verificado == 1:
-                st.success("✅ ¡Tu identidad ya está verificada!")
+                st.success("✅ Tu identidad ya esta verificada!")
                 st.balloons()
             else:
-                st.info("💡 Verifica tu cuenta para no perder acceso si se acaban tus créditos.")
+                st.info("Verifica tu cuenta para no perder acceso si se acaban tus creditos.")
                 if not IA_DISPONIBLE:
-                    st.warning("⚠️ El módulo de biometría no está disponible en este servidor. Contacta al soporte.")
+                    st.warning("El modulo de biometria no esta disponible. Contacta al soporte.")
                 else:
                     col1, col2 = st.columns(2)
                     with col1:
-                        foto_doc_vol = st.file_uploader("1. Foto de tu Cédula/NIT", type=['jpg', 'png', 'jpeg'], key="doc_vol")
+                        foto_doc_vol = st.file_uploader("1. Foto de tu Cedula/NIT", type=['jpg', 'png', 'jpeg'], key="doc_vol")
                     with col2:
                         foto_selfie_vol = st.camera_input("2. Tómate una selfie ahora", key="selfie_vol")
                     if st.button("🔍 Validar Identidad"):
                         if foto_doc_vol and foto_selfie_vol:
-                            with st.spinner("Analizando biometría..."):
+                            with st.spinner("Analizando biometria..."):
                                 exito, msg = comparar_rostros(foto_doc_vol.getvalue(), foto_selfie_vol.getvalue())
                                 if exito:
                                     c.execute("UPDATE usuarios SET verificado_biometria=1 WHERE email=?", (usuario,))
@@ -1083,7 +1073,31 @@ else:
                                 else:
                                     st.error(msg)
                         else:
-                            st.warning("⚠️ Sube la foto del documento y tómate la selfie.")
+                            st.warning("Sube la foto del documento y tómate la selfie.")
+
+        with t7:
+            st.markdown("#### 🔑 Cambiar Contrasena")
+            if u_data[1] == "GOOGLE":
+                st.info("Tu cuenta usa Google para iniciar sesion. No puedes cambiar la contrasena aqui.")
+            else:
+                with st.form("cambiar_pass"):
+                    pass_actual = st.text_input("Contrasena actual", type="password")
+                    pass_nueva = st.text_input("Nueva contrasena", type="password")
+                    pass_confirmar = st.text_input("Confirmar nueva contrasena", type="password")
+                    if st.form_submit_button("Actualizar Contrasena"):
+                        if not pass_actual or not pass_nueva or not pass_confirmar:
+                            st.error("Todos los campos son obligatorios.")
+                        elif make_hashes(pass_actual) != u_data[1]:
+                            st.error("❌ La contrasena actual es incorrecta.")
+                        elif pass_nueva != pass_confirmar:
+                            st.error("❌ Las contrasenas nuevas no coinciden.")
+                        elif len(pass_nueva) < 6:
+                            st.error("❌ La nueva contrasena debe tener al menos 6 caracteres.")
+                        else:
+                            c.execute("UPDATE usuarios SET password=? WHERE email=?",
+                                      (make_hashes(pass_nueva), usuario))
+                            conn.commit()
+                            st.success("✅ Contrasena actualizada correctamente.")
 
     # ==========================================
     # 🗂️ HISTORIAL
@@ -1095,7 +1109,7 @@ else:
             conn, params=(usuario,)
         )
         if hist.empty:
-            st.info("Aún no has generado ninguna cuenta de cobro.")
+            st.info("Aun no has generado ninguna cuenta de cobro.")
         else:
             for i, row in hist.iterrows():
                 if row['estado'] == 'Pagada':
@@ -1163,31 +1177,31 @@ else:
     # 👥 CLIENTES
     # ==========================================
     elif menu == "👥 Clientes":
-        st.title("👥 Gestión de Clientes")
+        st.title("👥 Gestion de Clientes")
         with st.expander("➕ Agregar Nuevo Cliente", expanded=True):
             with st.form("cl"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    n = st.text_input("Nombre / Razón Social")
-                    ni = st.text_input("NIT o CC (solo números)")
+                    n = st.text_input("Nombre / Razon Social")
+                    ni = st.text_input("NIT o CC (solo numeros)")
                     ci = st.text_input("Ciudad")
                 with c2:
                     em = st.text_input("Email del Cliente")
-                    tel = st.text_input("Teléfono / Celular")
+                    tel = st.text_input("Telefono / Celular")
                 if st.form_submit_button("💾 Guardar Cliente"):
                     if not n or not ni or not ci:
-                        st.error("⚠️ Nombre, NIT y Ciudad son obligatorios.")
+                        st.error("Nombre, NIT y Ciudad son obligatorios.")
                     elif not es_numero(ni):
-                        st.error("⚠️ El NIT/CC debe contener solo números (sin puntos ni guiones).")
+                        st.error("El NIT/CC debe contener solo numeros (sin puntos ni guiones).")
                     elif tel and not es_numero(tel):
-                        st.error("⚠️ El teléfono debe contener solo números.")
+                        st.error("El telefono debe contener solo numeros.")
                     else:
                         dup = c.execute(
                             "SELECT * FROM clientes WHERE user_email=? AND nit_cliente=?",
                             (usuario, ni)
                         ).fetchone()
                         if dup:
-                            st.error(f"⚠️ El cliente con NIT {ni} ya existe.")
+                            st.error(f"El cliente con NIT {ni} ya existe.")
                         else:
                             c.execute(
                                 "INSERT INTO clientes (user_email, nombre_cliente, nit_cliente, ciudad_cliente, email_cliente, telefono_cliente) VALUES (?,?,?,?,?,?)",
@@ -1199,11 +1213,11 @@ else:
 
         st.markdown("<br>", unsafe_allow_html=True)
         clientes_df = pd.read_sql_query(
-            "SELECT nombre_cliente AS Cliente, nit_cliente AS NIT, ciudad_cliente AS Ciudad, telefono_cliente AS Teléfono FROM clientes WHERE user_email=?",
+            "SELECT nombre_cliente AS Cliente, nit_cliente AS NIT, ciudad_cliente AS Ciudad, telefono_cliente AS Telefono FROM clientes WHERE user_email=?",
             conn, params=(usuario,)
         )
         if clientes_df.empty:
-            st.info("Aún no has registrado clientes.")
+            st.info("Aun no has registrado clientes.")
         else:
             st.dataframe(clientes_df, hide_index=True, use_container_width=True)
 
@@ -1233,16 +1247,16 @@ else:
             if es_premium:
                 st.success("💎 Eres Premium — uso ilimitado.")
             else:
-                st.info(f"⚡ Tienes **{creditos}** crédito{'s' if creditos != 1 else ''} disponible{'s' if creditos != 1 else ''}.")
+                st.info(f"⚡ Tienes **{creditos}** credito{'s' if creditos != 1 else ''} disponible{'s' if creditos != 1 else ''}.")
 
             cls = pd.read_sql_query("SELECT * FROM clientes WHERE user_email=?", conn, params=(usuario,))
             bks = pd.read_sql_query("SELECT * FROM cuentas_bancarias WHERE user_email=?", conn, params=(usuario,))
 
             if cls.empty:
-                st.warning("⚠️ Primero agrega al menos un cliente en el menú **👥 Clientes**.")
+                st.warning("Primero agrega al menos un cliente en el menu **👥 Clientes**.")
                 st.stop()
             if bks.empty:
-                st.warning("⚠️ Primero agrega una cuenta bancaria en **⚙️ Mi Perfil → Bancos**.")
+                st.warning("Primero agrega una cuenta bancaria en **⚙️ Mi Perfil → Bancos**.")
                 st.stop()
 
             c.execute("SELECT MAX(consecutivo) FROM facturas WHERE user_email=?", (usuario,))
@@ -1251,11 +1265,11 @@ else:
 
             c1, c2 = st.columns([2, 1])
             with c1:
-                st.markdown("##### 📋 Información del Servicio")
+                st.markdown("##### 📋 Informacion del Servicio")
                 cli = st.selectbox("Cliente", cls['nombre_cliente'])
                 cli_o = cls[cls['nombre_cliente'] == cli].iloc[0]
-                ciudad_emision = st.text_input("Ciudad de Emisión", value=cli_o['ciudad_cliente'])
-                conc = st.text_area("Descripción detallada del servicio", height=100)
+                ciudad_emision = st.text_input("Ciudad de Emision", value=cli_o['ciudad_cliente'])
+                conc = st.text_area("Descripcion detallada del servicio", height=100)
                 val = st.number_input("Valor Base ($)", min_value=0, step=50000)
 
             with c2:
@@ -1263,10 +1277,10 @@ else:
                 bk_s = st.selectbox("Banco Destino", bks.apply(lambda x: f"{x['id']} - {x['banco']}", axis=1))
                 bid = int(bk_s.split(' - ')[0])
                 st.markdown("##### 🧾 Retenciones")
-                rf = st.checkbox("Retención en la Fuente", value=True)
+                rf = st.checkbox("Retencion en la Fuente", value=True)
                 rf_v = 0
                 if rf:
-                    trf = st.selectbox("Tarifa Retención", [
+                    trf = st.selectbox("Tarifa Retencion", [
                         "Honorarios (10%)", "Honorarios Declarante (11%)",
                         "Servicios (4%)", "Servicios Declarante (6%)", "Arrendamiento (3.5%)"
                     ])
@@ -1293,9 +1307,9 @@ else:
                 st.metric("TOTAL A COBRAR", f"${neto:,.0f}")
 
             if not conc:
-                st.warning("⚠️ Escribe la descripción del servicio antes de generar.")
+                st.warning("Escribe la descripcion del servicio antes de generar.")
             elif val <= 0:
-                st.warning("⚠️ El valor base debe ser mayor a $0.")
+                st.warning("El valor base debe ser mayor a $0.")
             elif st.button("⚡ GENERAR DOCUMENTO"):
                 if not es_premium:
                     c.execute("UPDATE usuarios SET creditos = creditos - 1 WHERE email=?", (usuario,))
@@ -1318,7 +1332,7 @@ else:
                     st.session_state['pr'] = p
                     st.session_state['pn'] = f"CuentaCobro_{prox:04d}.pdf"
                     st.session_state['ml'] = cli_o['email_cliente']
-                    st.success("✅ ¡Documento creado exitosamente!")
+                    st.success("✅ Documento creado exitosamente!")
                     st.rerun()
                 else:
                     st.error("Error generando el PDF. Verifica tu cuenta bancaria.")
@@ -1349,14 +1363,14 @@ else:
 
         else:
             if verificado == 1:
-                st.error("🚫 Se han agotado tus créditos gratuitos.")
-                st.info("💎 Como ya verificaste tu identidad, activa un plan en **⚙️ Mi Perfil → 💎 Suscripción**.")
+                st.error("🚫 Se han agotado tus creditos gratuitos.")
+                st.info("💎 Como ya verificaste tu identidad, activa un plan en **⚙️ Mi Perfil → 💎 Suscripcion**.")
             else:
-                st.error("🚫 Tus créditos gratuitos se han agotado.")
+                st.error("🚫 Tus creditos gratuitos se han agotado.")
                 st.warning("🔒 Verifica tu identidad para continuar.")
                 col1, col2 = st.columns(2)
                 with col1:
-                    foto_doc = st.file_uploader("Sube foto de tu Cédula/NIT", type=['jpg', 'png', 'jpeg'])
+                    foto_doc = st.file_uploader("Sube foto de tu Cedula/NIT", type=['jpg', 'png', 'jpeg'])
                 with col2:
                     foto_selfie = st.camera_input("Tómate una selfie ahora")
                 if st.button("🔍 Validar Identidad"):
@@ -1365,7 +1379,7 @@ else:
                             exito, mensaje = comparar_rostros(foto_doc.getvalue(), foto_selfie.getvalue())
                             if exito:
                                 st.balloons()
-                                st.success("✅ Verificado. +1 Crédito gratis.")
+                                st.success("✅ Verificado. +1 Credito gratis.")
                                 c.execute(
                                     "UPDATE usuarios SET verificado_biometria=1, creditos=1 WHERE email=?",
                                     (usuario,)
@@ -1375,7 +1389,7 @@ else:
                             else:
                                 st.error(mensaje)
                     else:
-                        st.warning("⚠️ Sube ambas fotos para continuar.")
+                        st.warning("Sube ambas fotos para continuar.")
 
     # ==========================================
     # 📊 PANEL DE CONTROL
@@ -1401,7 +1415,7 @@ else:
             st.markdown("---")
             c1, c2 = st.columns([3, 1])
             with c1:
-                st.subheader("📋 Últimos Movimientos")
+                st.subheader("📋 Ultimos Movimientos")
                 st.dataframe(
                     df[['consecutivo', 'fecha', 'cliente_nombre', 'valor_base', 'neto_pagar', 'estado']].rename(columns={
                         'consecutivo': '#', 'fecha': 'Fecha', 'cliente_nombre': 'Cliente',
@@ -1423,7 +1437,6 @@ else:
                     st.success("✅ Estado actualizado.")
                     st.rerun()
 
-            # Gráfico
             if len(df_ok) > 0:
                 st.markdown("---")
                 st.subheader("📈 Ingresos por Cliente")
@@ -1436,7 +1449,7 @@ else:
                 ).properties(height=300)
                 st.altair_chart(chart, use_container_width=True)
         else:
-            st.info("Aún no tienes documentos generados. Ve a **📝 Facturar** para crear el primero.")
+            st.info("Aun no tienes documentos generados. Ve a **📝 Facturar** para crear el primero.")
 
     # ==========================================
     # 🔧 PANEL ADMINISTRADOR
@@ -1456,7 +1469,7 @@ else:
                 (email_buscar,)
             ).fetchone()
             if user_found:
-                st.success(f"👤 {user_found[0]} | Créditos: {user_found[1]} | Vence: {user_found[2]} | Verificado: {'Sí' if user_found[3] else 'No'}")
+                st.success(f"👤 {user_found[0]} | Creditos: {user_found[1]} | Vence: {user_found[2]} | Verificado: {'Si' if user_found[3] else 'No'}")
                 st.markdown("---")
                 col1, col2 = st.columns(2)
                 with col1:
@@ -1470,12 +1483,12 @@ else:
                         conn.commit()
                         st.success(f"✅ Plan activado hasta: {nueva_fecha}")
                 with col2:
-                    st.subheader("⚡ Ajustar Créditos")
-                    nuevos_creditos = st.number_input("Créditos a asignar", min_value=0, max_value=999, value=5)
-                    if st.button("Actualizar Créditos"):
+                    st.subheader("⚡ Ajustar Creditos")
+                    nuevos_creditos = st.number_input("Creditos a asignar", min_value=0, max_value=999, value=5)
+                    if st.button("Actualizar Creditos"):
                         _c.execute("UPDATE usuarios SET creditos=? WHERE email=?", (nuevos_creditos, email_buscar))
                         conn.commit()
-                        st.success(f"✅ Créditos actualizados a {nuevos_creditos}.")
+                        st.success(f"✅ Creditos actualizados a {nuevos_creditos}.")
             else:
                 st.error("Usuario no encontrado.")
 
@@ -1489,48 +1502,40 @@ else:
 
     # ==========================================
     # 📞 SOPORTE
-    # ACTIVACIÓN ADMIN TEMPORAL — borrar después de activar
-    if usuario == "atomoapp.co@gmail.com" and u_data[7] != "admin":
-        if st.sidebar.button("🔑 Activar Admin"):
-            c.execute("UPDATE usuarios SET rol='admin' WHERE email=?", (usuario,))
-            conn.commit()
-            st.sidebar.success("✅ Rol admin activado")
-            st.rerun()
-
     # ==========================================
     elif menu == "📞 Soporte":
         st.title("📞 Centro de Soporte")
-        st.markdown("¿Tienes dudas o problemas? Estamos aquí para ayudarte.")
+        st.markdown("Tienes dudas o problemas? Estamos aqui para ayudarte.")
 
         c1, c2 = st.columns([1, 1])
         with c1:
-            st.subheader("📩 Envíanos un mensaje")
+            st.subheader("📩 Envianos un mensaje")
             with st.form("contact_form"):
-                asunto = st.selectbox("Motivo", ["Soporte Técnico", "Pagos y Suscripción", "Reportar Error", "Otro"])
+                asunto = st.selectbox("Motivo", ["Soporte Tecnico", "Pagos y Suscripcion", "Reportar Error", "Otro"])
                 mensaje = st.text_area("Detalle de tu solicitud")
                 enviar = st.form_submit_button("📤 Enviar Mensaje")
                 if enviar:
                     if not mensaje:
-                        st.error("⚠️ Escribe tu mensaje antes de enviar.")
+                        st.error("Escribe tu mensaje antes de enviar.")
                     else:
                         cuerpo = f"Usuario: {usuario}\nMotivo: {asunto}\n\nMensaje:\n{mensaje}"
-                        ok = enviar_email_smtp("atomoapp.co@gmail.com", f"Soporte Átomo: {asunto}", cuerpo)
+                        ok = enviar_email_smtp("atomoapp.co@gmail.com", f"Soporte Atomo: {asunto}", cuerpo)
                         if ok:
                             st.success("✅ Mensaje enviado. Te responderemos pronto.")
                         else:
-                            st.error("Error enviando mensaje. Escríbenos por WhatsApp.")
+                            st.error("Error enviando mensaje. Escribenos por WhatsApp.")
 
         with c2:
             st.subheader("💬 Contacto Directo")
-            st.info("Para atención inmediata, escríbenos a WhatsApp.")
+            st.info("Para atencion inmediata, escribenos a WhatsApp.")
             st.link_button("📲 Abrir WhatsApp", "https://wa.me/34610792047")
             st.markdown("---")
             st.subheader("❓ Preguntas Frecuentes")
-            with st.expander("¿Cómo activo mi plan después de pagar?"):
-                st.write("El sistema lo activa automáticamente al finalizar el pago en Mercado Pago. Si no se activa en 5 minutos, envíanos el comprobante por WhatsApp.")
-            with st.expander("¿Cómo funcionan los créditos gratuitos?"):
-                st.write("Tienes 5 créditos al registrarte. Cada documento generado usa 1 crédito. Si invitas amigos con tu código de referido, ambos ganan 5 créditos.")
-            with st.expander("¿Cómo verifico mi identidad?"):
-                st.write("Ve a Mi Perfil → Verificación, sube foto de tu cédula y tómate una selfie. La IA compara los rostros automáticamente.")
-            with st.expander("¿Los documentos tienen validez legal?"):
-                st.write("Sí. Las cuentas de cobro son documentos soporte válidos para personas naturales no obligadas a facturar, según la normativa colombiana.")
+            with st.expander("Como activo mi plan despues de pagar?"):
+                st.write("El sistema lo activa automaticamente al finalizar el pago en Mercado Pago. Si no se activa en 5 minutos, envianos el comprobante por WhatsApp.")
+            with st.expander("Como funcionan los creditos gratuitos?"):
+                st.write("Tienes 5 creditos al registrarte. Cada documento generado usa 1 credito. Si invitas amigos con tu codigo de referido, ambos ganan 5 creditos.")
+            with st.expander("Como verifico mi identidad?"):
+                st.write("Ve a Mi Perfil → Verificacion, sube foto de tu cedula y tómate una selfie. La IA compara los rostros automaticamente.")
+            with st.expander("Los documentos tienen validez legal?"):
+                st.write("Si. Las cuentas de cobro son documentos soporte validos para personas naturales no obligadas a facturar, segun la normativa colombiana.")
