@@ -148,6 +148,9 @@ st.markdown("""
     div[data-testid="stSelectbox"] div[data-baseweb="select"] div { color: #000000 !important; }
     ul[data-baseweb="menu"] li { background-color: #FFFFFF !important; color: #000000 !important; }
     ul[data-baseweb="menu"] li div, ul[data-baseweb="menu"] li span { color: #000000 !important; }
+    ul[data-baseweb="menu"] { background-color: #FFFFFF !important; }
+div[data-baseweb="popover"] { background-color: #FFFFFF !important; }
+div[data-baseweb="menu"] { background-color: #FFFFFF !important; }
 
     [data-testid="stCodeBlock"] {
         background-color: #FFFFFF !important;
