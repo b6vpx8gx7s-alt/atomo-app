@@ -146,15 +146,9 @@ st.markdown("""
 
     div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #000000 !important; }
     div[data-testid="stSelectbox"] div[data-baseweb="select"] div { color: #000000 !important; }
-    
-ul[data-baseweb="menu"] li { background-color: #FFFFFF !important; color: #000000 !important; }
-ul[data-baseweb="menu"] li div, ul[data-baseweb="menu"] li span { color: #000000 !important; }
-div[data-baseweb="popover"] { background-color: #FFFFFF !important; }
-div[data-baseweb="popover"] > div { background-color: #FFFFFF !important; }
-div[data-baseweb="menu"] { background-color: #FFFFFF !important; }
-[data-baseweb="menu"] { background-color: #FFFFFF !important; }
-[role="listbox"] { background-color: #FFFFFF !important; }
-[role="option"] { background-color: #FFFFFF !important; color: #000000 !important; }
+    ul[data-baseweb="menu"] li { background-color: #FFFFFF !important; color: #000000 !important; }
+    ul[data-baseweb="menu"] li div, ul[data-baseweb="menu"] li span { color: #000000 !important; }
+
     [data-testid="stCodeBlock"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -610,6 +604,12 @@ if 'temp_reg_data' not in st.session_state:
     st.session_state['temp_reg_data'] = {}
 if 'otp_ts' not in st.session_state:
     st.session_state['otp_ts'] = None
+if 'reset_paso' not in st.session_state:
+    st.session_state['reset_paso'] = None
+if 'reset_otp' not in st.session_state:
+    st.session_state['reset_otp'] = None
+if 'reset_email' not in st.session_state:
+    st.session_state['reset_email'] = None
 
 ref_from_url = st.query_params.get("ref", "")
 
@@ -710,12 +710,15 @@ if st.session_state['usuario_activo'] is None:
                 else:
                     st.error("❌ Correo o contraseña incorrectos.")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("¿Olvidaste tu contraseña?"):
-                correo_reset = st.text_input("Ingresa tu correo", key="correo_reset")
+                correo_reset = st.text_input("Ingresa tu correo registrado", key="correo_reset")
                 if st.button("Enviar código de recuperación"):
                     _c = conn.cursor()
-                    user_reset = _c.execute("SELECT email FROM usuarios WHERE email=?", (correo_reset.lower().strip(),)).fetchone()
+                    user_reset = _c.execute(
+                        "SELECT email FROM usuarios WHERE email=?",
+                        (correo_reset.lower().strip(),)
+                    ).fetchone()
                     if user_reset:
                         otp_reset = str(random.randint(100000, 999999))
                         st.session_state['reset_otp'] = otp_reset
@@ -726,11 +729,12 @@ if st.session_state['usuario_activo'] is None:
                             st.success("✅ Código enviado a tu correo.")
                             st.rerun()
                     else:
-                        st.error("❌ No encontramos ese correo.")
+                        st.error("❌ No encontramos ese correo registrado.")
 
             if st.session_state.get('reset_paso') == 2:
                 st.markdown("---")
                 st.markdown("#### 🔑 Restablecer contraseña")
+                st.info(f"Código enviado a: **{st.session_state.get('reset_email', '')}**")
                 otp_r = st.text_input("Código de 6 dígitos", key="otp_r")
                 nueva_pass = st.text_input("Nueva contraseña", type="password", key="nueva_pass")
                 confirmar_pass = st.text_input("Confirmar contraseña", type="password", key="confirmar_pass")
@@ -738,8 +742,10 @@ if st.session_state['usuario_activo'] is None:
                     if otp_r == st.session_state.get('reset_otp'):
                         if nueva_pass == confirmar_pass and len(nueva_pass) >= 6:
                             _c = conn.cursor()
-                            _c.execute("UPDATE usuarios SET password=? WHERE email=?",
-                                      (make_hashes(nueva_pass), st.session_state['reset_email']))
+                            _c.execute(
+                                "UPDATE usuarios SET password=? WHERE email=?",
+                                (make_hashes(nueva_pass), st.session_state['reset_email'])
+                            )
                             conn.commit()
                             st.success("✅ Contraseña actualizada. Ya puedes iniciar sesión.")
                             st.session_state['reset_paso'] = None
@@ -750,6 +756,10 @@ if st.session_state['usuario_activo'] is None:
                             st.error("❌ La contraseña debe tener al menos 6 caracteres.")
                     else:
                         st.error("❌ Código incorrecto.")
+                if st.button("← Cancelar"):
+                    st.session_state['reset_paso'] = None
+                    st.rerun()
+
         # ---------- REGISTRO ----------
         with t_reg:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1477,15 +1487,15 @@ else:
 
     # ==========================================
     # 📞 SOPORTE
-    # ==========================================
     # ACTIVACIÓN ADMIN TEMPORAL — borrar después de activar
-    if usuario == "atomoapp.co@gmail.com":
+    if usuario == "atomoapp.co@gmail.com" and u_data[7] != "admin":
         if st.sidebar.button("🔑 Activar Admin"):
             c.execute("UPDATE usuarios SET rol='admin' WHERE email=?", (usuario,))
             conn.commit()
             st.sidebar.success("✅ Rol admin activado")
             st.rerun()
 
+    # ==========================================
     elif menu == "📞 Soporte":
         st.title("📞 Centro de Soporte")
         st.markdown("¿Tienes dudas o problemas? Estamos aquí para ayudarte.")
