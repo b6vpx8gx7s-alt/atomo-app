@@ -316,19 +316,19 @@ def hex_to_rgb(hex_color):
 
 def enviar_codigo_otp(para, codigo):
     if not SMTP_EMAIL or not SMTP_PASSWORD:
-        st.warning("⚠️ El servicio de correo no está configurado. Contacta al administrador.")
+        st.warning("El servicio de correo no esta configurado.")
         return False
     try:
-        msg = MIMEMultipart()
+        asunto = f"Codigo de verificacion Atomo: {codigo}"
+        cuerpo = f"Tu codigo es: {codigo}\n\nExpira en 10 minutos."
+        msg = MIMEText(cuerpo, 'plain', 'utf-8')
         msg['From'] = SMTP_EMAIL
         msg['To'] = para
-        msg['Subject'] = f"Tu codigo de verificacion Atomo: {codigo}"
-        cuerpo = f"Bienvenido a Atomo.co\n\nTu codigo de verificacion es: {codigo}\n\nEste codigo expira en 10 minutos."
-        msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
+        msg['Subject'] = asunto
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.sendmail(SMTP_EMAIL, para, msg.as_string())
+        server.sendmail(SMTP_EMAIL, para, msg.as_bytes())
         server.quit()
         return True
     except Exception as e:
