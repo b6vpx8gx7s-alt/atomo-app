@@ -1523,7 +1523,7 @@ else:
         with c2:
             st.subheader("💬 Contacto Directo")
             st.info("Para atención inmediata, escríbenos a WhatsApp.")
-            st.link_button("📲 Abrir WhatsApp", "https://wa.me/573000000000")
+            st.link_button("📲 Abrir WhatsApp", "https://wa.me/34610792047")
             st.markdown("---")
             st.subheader("❓ Preguntas Frecuentes")
             with st.expander("¿Cómo activo mi plan después de pagar?"):
