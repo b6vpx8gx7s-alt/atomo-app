@@ -102,6 +102,7 @@ st.markdown("""
         -webkit-text-fill-color: #000000 !important;
         background-color: #FFFFFF !important;
         font-weight: 600 !important;
+        caret-color: #000000 !important;
     }
     div[data-baseweb="input"], div[data-baseweb="base-input"], div[data-testid="stForm"] {
         background-color: #FFFFFF !important;
@@ -311,6 +312,21 @@ def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
+def limpiar_texto_pdf(texto):
+    """Normaliza texto para evitar errores de encoding en FPDF con fuente Arial (latin-1)"""
+    if not texto:
+        return ""
+    reemplazos = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'ñ': 'n', 'Ñ': 'N', 'ü': 'u', 'Ü': 'U',
+        '\u2019': "'", '\u2018': "'", '\u201c': '"', '\u201d': '"',
+        '\u2013': '-', '\u2014': '-', '\u2026': '...', '\xa0': ' ',
+    }
+    for k, v in reemplazos.items():
+        texto = texto.replace(k, v)
+    return texto.encode('latin-1', errors='replace').decode('latin-1')
+
 # ==========================================
 # 📧 EMAIL
 # ==========================================
@@ -427,11 +443,18 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     bank = c_fresh.execute('SELECT * FROM cuentas_bancarias WHERE id=?', (id_banco_in,)).fetchone()
     if not bank: return None
 
+    # Limpiar todos los textos para evitar errores de encoding
+    cli_sel = limpiar_texto_pdf(cli_sel)
+    nit_cli = limpiar_texto_pdf(nit_cli)
+    conc = limpiar_texto_pdf(conc)
+    ciudad_emision = limpiar_texto_pdf(ciudad_emision)
+
     COLOR_HEX = u[12] if len(u) > 12 and u[12] else "#2E86C1"
     R, G, B = hex_to_rgb(COLOR_HEX)
-    SLOGAN = u[9] if len(u) > 9 and u[9] else ""
-    DIR = u[10] if len(u) > 10 and u[10] else ""
-    EMAIL_CONT = u[11] if len(u) > 11 and u[11] else u[0]
+    SLOGAN = limpiar_texto_pdf(u[9] if len(u) > 9 and u[9] else "")
+    DIR = limpiar_texto_pdf(u[10] if len(u) > 10 and u[10] else "")
+    EMAIL_CONT = limpiar_texto_pdf(u[11] if len(u) > 11 and u[11] else u[0])
+    NOMBRE = limpiar_texto_pdf(u[2])
 
     pdf = FPDF('P', 'mm', 'A4')
     pdf.add_page()
@@ -450,7 +473,7 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
 
     text_start_x = start_x_logo + logo_width + 8 if logo_width > 0 else 15
     pdf.set_xy(text_start_x, 15); pdf.set_font("Arial", 'B', 16); pdf.set_text_color(50, 50, 50)
-    pdf.cell(0, 8, u[2].upper(), ln=1)
+    pdf.cell(0, 8, NOMBRE.upper(), ln=1)
     if SLOGAN:
         pdf.set_xy(text_start_x, 22); pdf.set_font("Arial", 'I', 10); pdf.set_text_color(100, 100, 100)
         pdf.cell(0, 6, SLOGAN, ln=1)
@@ -835,12 +858,33 @@ else:
                                   (usuario, b, nm, t_tipo, br, qrb))
                         conn.commit(); st.success("✅ Cuenta agregada."); st.rerun()
             st.markdown("---")
-            bks_list = pd.read_sql_query("SELECT id, banco, numero_cuenta FROM cuentas_bancarias WHERE user_email=?", conn, params=(usuario,))
-            if bks_list.empty: st.info("Aun no tienes cuentas bancarias.")
-            for i, r in bks_list.iterrows():
-                with st.expander(f"🏦 {r['banco']} — {r['numero_cuenta']}"):
-                    if st.button("🗑️ Eliminar", key=f"del_{r['id']}"):
-                        c.execute("DELETE FROM cuentas_bancarias WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
+            bks_list = pd.read_sql_query("SELECT * FROM cuentas_bancarias WHERE user_email=?", conn, params=(usuario,))
+            if bks_list.empty:
+                st.info("Aun no tienes cuentas bancarias.")
+            else:
+                for i, r in bks_list.iterrows():
+                    with st.expander(f"🏦 {r['banco']} — {r['numero_cuenta']}"):
+                        with st.form(f"edit_banco_{r['id']}"):
+                            eb1, eb2 = st.columns(2)
+                            with eb1:
+                                eb_banco = st.text_input("Banco", r['banco'])
+                                eb_num = st.text_input("Numero de Cuenta", r['numero_cuenta'])
+                            with eb2:
+                                eb_tipo = st.selectbox("Tipo", ["Ahorros", "Corriente"],
+                                                       index=0 if r['tipo_cuenta']=="Ahorros" else 1)
+                                eb_bre = st.text_input("Llave Bre-B", r['bre_b'] or "")
+                            eb_qr = st.file_uploader("Actualizar QR (opcional)", type=['png','jpg'], key=f"qr_{r['id']}")
+                            col_upd, col_del = st.columns(2)
+                            with col_upd:
+                                if st.form_submit_button("💾 Guardar cambios"):
+                                    qrb = eb_qr.getvalue() if eb_qr else r['qr_imagen']
+                                    c.execute("UPDATE cuentas_bancarias SET banco=?, numero_cuenta=?, tipo_cuenta=?, bre_b=?, qr_imagen=? WHERE id=?",
+                                              (eb_banco, eb_num, eb_tipo, eb_bre, qrb, int(r['id'])))
+                                    conn.commit(); st.success("✅ Cuenta actualizada."); st.rerun()
+                            with col_del:
+                                if st.form_submit_button("🗑️ Eliminar cuenta"):
+                                    c.execute("DELETE FROM cuentas_bancarias WHERE id=?", (int(r['id']),))
+                                    conn.commit(); st.success("✅ Cuenta eliminada."); st.rerun()
 
         with t4:
             st.markdown("### 💎 Planes de Suscripcion")
@@ -1009,9 +1053,37 @@ else:
                                       (usuario, n, ni, ci, em, tel))
                             conn.commit(); st.success(f"✅ Cliente '{n}' agregado."); st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
-        clientes_df = pd.read_sql_query("SELECT nombre_cliente AS Cliente, nit_cliente AS NIT, ciudad_cliente AS Ciudad, telefono_cliente AS Telefono FROM clientes WHERE user_email=?", conn, params=(usuario,))
-        if clientes_df.empty: st.info("Aun no has registrado clientes.")
-        else: st.dataframe(clientes_df, hide_index=True, use_container_width=True)
+        clientes_df = pd.read_sql_query("SELECT * FROM clientes WHERE user_email=?", conn, params=(usuario,))
+        if clientes_df.empty:
+            st.info("Aun no has registrado clientes.")
+        else:
+            st.dataframe(clientes_df[['nombre_cliente','nit_cliente','ciudad_cliente','telefono_cliente']].rename(columns={
+                'nombre_cliente':'Cliente','nit_cliente':'NIT','ciudad_cliente':'Ciudad','telefono_cliente':'Telefono'}),
+                hide_index=True, use_container_width=True)
+            st.markdown("#### ✏️ Editar Cliente")
+            opciones_cli = clientes_df.apply(lambda x: f"{x['nombre_cliente']} — {x['nit_cliente']}", axis=1).tolist()
+            cli_editar = st.selectbox("Selecciona el cliente a editar", opciones_cli, key="sel_edit_cli")
+            idx_cli = opciones_cli.index(cli_editar)
+            row_cli = clientes_df.iloc[idx_cli]
+            with st.form("edit_cliente"):
+                ec1, ec2 = st.columns(2)
+                with ec1:
+                    en = st.text_input("Nombre", row_cli['nombre_cliente'])
+                    eni = st.text_input("NIT/CC", row_cli['nit_cliente'])
+                    eci = st.text_input("Ciudad", row_cli['ciudad_cliente'])
+                with ec2:
+                    eem = st.text_input("Email", row_cli['email_cliente'] or "")
+                    etel = st.text_input("Telefono", row_cli['telefono_cliente'] or "")
+                col_save, col_del = st.columns(2)
+                with col_save:
+                    if st.form_submit_button("💾 Guardar cambios"):
+                        c.execute("UPDATE clientes SET nombre_cliente=?, nit_cliente=?, ciudad_cliente=?, email_cliente=?, telefono_cliente=? WHERE id=?",
+                                  (en, eni, eci, eem, etel, int(row_cli['id'])))
+                        conn.commit(); st.success("✅ Cliente actualizado."); st.rerun()
+                with col_del:
+                    if st.form_submit_button("🗑️ Eliminar cliente"):
+                        c.execute("DELETE FROM clientes WHERE id=?", (int(row_cli['id']),))
+                        conn.commit(); st.success("✅ Cliente eliminado."); st.rerun()
 
     # ==========================================
     # 📝 FACTURAR
