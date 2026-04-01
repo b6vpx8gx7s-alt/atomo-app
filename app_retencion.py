@@ -534,7 +534,7 @@ def motor_pdf(usuario, cli_sel, nit_cli, conc, val, rf_val, ica_val, neto, ciuda
     pdf.set_xy(15, Y_FOOTER+2); pdf.set_font("Arial", '', 8); pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, f"Direcci\u00f3n: {DIR}  |  Tel\u00e9fono: {u[4]}  |  Email: {EMAIL_CONT}", align='C')
     pdf.set_display_mode('fullpage', 'single')
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output())
 
 # ==========================================
 # 🚀 DETECCIÓN PAGOS Y OAUTH
