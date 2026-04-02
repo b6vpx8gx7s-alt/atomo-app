@@ -1473,7 +1473,8 @@ else:
             total_users = conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
             verificados = conn.execute("SELECT COUNT(*) FROM usuarios WHERE verificado_biometria=1").fetchone()[0]
             pendientes_count = conn.execute("SELECT COUNT(*) FROM usuarios WHERE verificado_biometria=2").fetchone()[0]
-            premium_count = conn.execute(f"SELECT COUNT(*) FROM usuarios WHERE premium_hasta >= '{datetime.now().strftime('%Y-%m-%d')}'").fetchone()[0]
+            hoy = datetime.now().strftime('%Y-%m-%d')
+            premium_count = conn.execute(f"SELECT COUNT(*) FROM usuarios WHERE premium_hasta >= '{hoy}'").fetchone()[0]
             bloqueados = conn.execute("SELECT COUNT(*) FROM usuarios WHERE estado_cuenta='bloqueada'").fetchone()[0]
             total_docs = conn.execute("SELECT COUNT(*) FROM facturas").fetchone()[0]
 
