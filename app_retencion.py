@@ -580,6 +580,125 @@ if "code" in st.query_params and st.session_state['usuario_activo'] is None:
             st.query_params.clear()
 
 # ==========================================
+# 📖 FUNCIÓN ONBOARDING
+# ==========================================
+def mostrar_onboarding():
+    pasos = [
+        {
+            "titulo": "👋 Bienvenido a Atomo.co",
+            "icono": "⚛️",
+            "descripcion": "Atomo.co es tu herramienta para generar cuentas de cobro profesionales con retenciones fiscales (Retefuente y ReteICA) en segundos. Sin Excel, sin Word, sin errores.",
+            "tip": "Tienes 5 creditos gratuitos para empezar. Cada documento generado usa 1 credito.",
+            "color": "#0EA5E9"
+        },
+        {
+            "titulo": "⚙️ Paso 1 — Configura tu Perfil",
+            "icono": "⚙️",
+            "descripcion": "Antes de generar documentos, ve a **Mi Perfil** y completa tu informacion:\n\n• **MARCA** — Sube tu logo y elige tu color de marca\n• **DATOS** — Tu nombre, NIT, telefono y direccion\n• **BANCOS** — Agrega tu cuenta bancaria para recibir pagos\n• **VERIFICACION** — Sube tu cedula y selfie para verificar tu identidad",
+            "tip": "Tu logo y firma aparecen en cada cuenta de cobro. Dale un look profesional!",
+            "color": "#8B5CF6"
+        },
+        {
+            "titulo": "👥 Paso 2 — Agrega tus Clientes",
+            "icono": "👥",
+            "descripcion": "Ve a **Clientes** y registra las empresas o personas a quienes les cobras:\n\n• Nombre o Razon Social\n• NIT o CC (solo numeros, sin puntos ni guiones)\n• Ciudad\n• Email del cliente (para enviarle el documento)\n• Telefono\n\nSolo necesitas registrarlos una vez.",
+            "tip": "Puedes editar o eliminar clientes en cualquier momento desde la misma seccion.",
+            "color": "#10B981"
+        },
+        {
+            "titulo": "📝 Paso 3 — Genera tu Cuenta de Cobro",
+            "icono": "📝",
+            "descripcion": "Ve a **Facturar** y completa el formulario:\n\n• Selecciona el cliente\n• Escribe la descripcion del servicio\n• Ingresa el valor base\n• Selecciona el banco destino\n• Elige si aplica Retefuente y/o ReteICA\n\nEl sistema calcula automaticamente las retenciones y el neto a pagar.",
+            "tip": "El documento se genera en PDF con tu logo, firma y datos bancarios incluidos.",
+            "color": "#F59E0B"
+        },
+        {
+            "titulo": "📧 Paso 4 — Descarga o Envia",
+            "icono": "📧",
+            "descripcion": "Despues de generar el documento tienes dos opciones:\n\n• **Descargar PDF** — Guardas el archivo en tu dispositivo\n• **Enviar por Email** — Lo envias directamente al correo de tu cliente\n\nTambien puedes regenerar cualquier documento anterior desde **Historial**.",
+            "tip": "En Historial puedes cambiar el estado de cada documento: Pendiente, Pagada o Anulada.",
+            "color": "#06B6D4"
+        },
+        {
+            "titulo": "📊 Panel de Control",
+            "icono": "📊",
+            "descripcion": "El **Panel de Control** te muestra un resumen de tus finanzas:\n\n• Total emitido\n• Total cobrado\n• Por cobrar\n• Grafico de ingresos por cliente\n\nDesde ahi tambien puedes cambiar el estado de tus documentos rapidamente.",
+            "tip": "Mantén el estado de tus facturas actualizado para saber exactamente cuanto te deben.",
+            "color": "#EF4444"
+        },
+        {
+            "titulo": "💎 Planes y Creditos",
+            "icono": "💎",
+            "descripcion": "Tienes **5 creditos gratuitos** al registrarte. Cuando se agoten puedes:\n\n• **Verificar tu identidad** — Sube tu cedula y selfie en Mi Perfil → Verificacion\n• **Activar un plan** — Desde Mi Perfil → Suscripcion:\n  - Semanal: $8.000\n  - Mensual: $20.000\n  - Trimestral: $50.000\n  - Semestral: $93.000\n  - Anual: $156.000\n\nLos pagos se hacen via Mercado Pago y se activan automaticamente.",
+            "tip": "Invita amigos con tu codigo de referido — ambos ganan 5 creditos extra!",
+            "color": "#D97706"
+        },
+        {
+            "titulo": "🎁 Referidos y Soporte",
+            "icono": "🎁",
+            "descripcion": "**Programa de Referidos:**\nComparte tu codigo unico desde Mi Perfil → Referidos. Cuando alguien se registre con tu codigo, ambos ganan 5 creditos.\n\n**Soporte:**\nSi tienes dudas o problemas, ve a **Soporte** y envianos un mensaje o escribenos directamente por WhatsApp. Respondemos rapido.\n\n**Esta guia:**\nPuedes volver a verla cuando quieras desde el menu lateral → 📖 Guia de Uso.",
+            "tip": "Estamos aqui para ayudarte. No dudes en contactarnos por WhatsApp!",
+            "color": "#EC4899"
+        },
+    ]
+
+    paso_actual = st.session_state['onboarding_paso']
+    total_pasos = len(pasos)
+    paso = pasos[paso_actual]
+
+    # Barra de progreso
+    progreso = (paso_actual + 1) / total_pasos
+    st.markdown(f"""
+    <div style='background:rgba(255,255,255,0.08);border-radius:50px;height:6px;margin-bottom:8px;'>
+        <div style='background:linear-gradient(90deg,{paso["color"]},{paso["color"]}99);width:{progreso*100:.0f}%;height:6px;border-radius:50px;transition:width 0.4s;'></div>
+    </div>
+    <p style='color:#94A3B8;font-size:12px;text-align:right;margin-bottom:24px;'>Paso {paso_actual+1} de {total_pasos}</p>
+    """, unsafe_allow_html=True)
+
+    # Tarjeta del paso
+    st.markdown(f"""
+    <div style='background:rgba(30,41,59,0.8);border:1px solid {paso["color"]}44;border-radius:20px;padding:32px;margin-bottom:24px;'>
+        <div style='font-size:3rem;margin-bottom:16px;text-align:center;'>{paso["icono"]}</div>
+        <h2 style='color:{paso["color"]} !important;font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:20px;'>{paso["titulo"]}</h2>
+        <p style='color:#E2E8F0;font-size:1rem;line-height:1.8;white-space:pre-line;'>{paso["descripcion"]}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Tip
+    st.markdown(f"""
+    <div style='background:{paso["color"]}15;border-left:4px solid {paso["color"]};border-radius:8px;padding:14px 18px;margin-bottom:28px;'>
+        <span style='color:{paso["color"]};font-weight:700;'>💡 Tip: </span>
+        <span style='color:#CBD5E1;'>{paso["tip"]}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Botones de navegación
+    col_prev, col_dots, col_next = st.columns([1, 2, 1])
+
+    with col_prev:
+        if paso_actual > 0:
+            if st.button("← Anterior"):
+                st.session_state['onboarding_paso'] -= 1; st.rerun()
+
+    with col_dots:
+        dots_html = ""
+        for i in range(total_pasos):
+            color = paso["color"] if i == paso_actual else "#334155"
+            dots_html += f"<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};margin:0 3px;'></span>"
+        st.markdown(f"<div style='text-align:center;padding-top:10px;'>{dots_html}</div>", unsafe_allow_html=True)
+
+    with col_next:
+        if paso_actual < total_pasos - 1:
+            if st.button("Siguiente →"):
+                st.session_state['onboarding_paso'] += 1; st.rerun()
+        else:
+            if st.button("✅ Comenzar"):
+                st.session_state['onboarding_paso'] = 0
+                st.session_state['onboarding_visto'] = True
+                st.rerun()
+
+
+# ==========================================
 # 🔓 LOGIN / REGISTRO
 # ==========================================
 if st.session_state['usuario_activo'] is None:
@@ -738,124 +857,6 @@ if st.session_state['usuario_activo'] is None:
                         st.error("Codigo incorrecto.")
                 if st.button("Volver y corregir datos"):
                     st.session_state['registro_paso'] = 1; st.rerun()
-
-# ==========================================
-# 📖 FUNCIÓN ONBOARDING
-# ==========================================
-def mostrar_onboarding():
-pasos = [
-    {
-        "titulo": "👋 Bienvenido a Atomo.co",
-        "icono": "⚛️",
-        "descripcion": "Atomo.co es tu herramienta para generar cuentas de cobro profesionales con retenciones fiscales (Retefuente y ReteICA) en segundos. Sin Excel, sin Word, sin errores.",
-        "tip": "Tienes 5 creditos gratuitos para empezar. Cada documento generado usa 1 credito.",
-        "color": "#0EA5E9"
-    },
-    {
-        "titulo": "⚙️ Paso 1 — Configura tu Perfil",
-        "icono": "⚙️",
-        "descripcion": "Antes de generar documentos, ve a **Mi Perfil** y completa tu informacion:\n\n• **MARCA** — Sube tu logo y elige tu color de marca\n• **DATOS** — Tu nombre, NIT, telefono y direccion\n• **BANCOS** — Agrega tu cuenta bancaria para recibir pagos\n• **VERIFICACION** — Sube tu cedula y selfie para verificar tu identidad",
-        "tip": "Tu logo y firma aparecen en cada cuenta de cobro. Dale un look profesional!",
-        "color": "#8B5CF6"
-    },
-    {
-        "titulo": "👥 Paso 2 — Agrega tus Clientes",
-        "icono": "👥",
-        "descripcion": "Ve a **Clientes** y registra las empresas o personas a quienes les cobras:\n\n• Nombre o Razon Social\n• NIT o CC (solo numeros, sin puntos ni guiones)\n• Ciudad\n• Email del cliente (para enviarle el documento)\n• Telefono\n\nSolo necesitas registrarlos una vez.",
-        "tip": "Puedes editar o eliminar clientes en cualquier momento desde la misma seccion.",
-        "color": "#10B981"
-    },
-    {
-        "titulo": "📝 Paso 3 — Genera tu Cuenta de Cobro",
-        "icono": "📝",
-        "descripcion": "Ve a **Facturar** y completa el formulario:\n\n• Selecciona el cliente\n• Escribe la descripcion del servicio\n• Ingresa el valor base\n• Selecciona el banco destino\n• Elige si aplica Retefuente y/o ReteICA\n\nEl sistema calcula automaticamente las retenciones y el neto a pagar.",
-        "tip": "El documento se genera en PDF con tu logo, firma y datos bancarios incluidos.",
-        "color": "#F59E0B"
-    },
-    {
-        "titulo": "📧 Paso 4 — Descarga o Envia",
-        "icono": "📧",
-        "descripcion": "Despues de generar el documento tienes dos opciones:\n\n• **Descargar PDF** — Guardas el archivo en tu dispositivo\n• **Enviar por Email** — Lo envias directamente al correo de tu cliente\n\nTambien puedes regenerar cualquier documento anterior desde **Historial**.",
-        "tip": "En Historial puedes cambiar el estado de cada documento: Pendiente, Pagada o Anulada.",
-        "color": "#06B6D4"
-    },
-    {
-        "titulo": "📊 Panel de Control",
-        "icono": "📊",
-        "descripcion": "El **Panel de Control** te muestra un resumen de tus finanzas:\n\n• Total emitido\n• Total cobrado\n• Por cobrar\n• Grafico de ingresos por cliente\n\nDesde ahi tambien puedes cambiar el estado de tus documentos rapidamente.",
-        "tip": "Mantén el estado de tus facturas actualizado para saber exactamente cuanto te deben.",
-        "color": "#EF4444"
-    },
-    {
-        "titulo": "💎 Planes y Creditos",
-        "icono": "💎",
-        "descripcion": "Tienes **5 creditos gratuitos** al registrarte. Cuando se agoten puedes:\n\n• **Verificar tu identidad** — Sube tu cedula y selfie en Mi Perfil → Verificacion\n• **Activar un plan** — Desde Mi Perfil → Suscripcion:\n  - Semanal: $8.000\n  - Mensual: $20.000\n  - Trimestral: $50.000\n  - Semestral: $93.000\n  - Anual: $156.000\n\nLos pagos se hacen via Mercado Pago y se activan automaticamente.",
-        "tip": "Invita amigos con tu codigo de referido — ambos ganan 5 creditos extra!",
-        "color": "#D97706"
-    },
-    {
-        "titulo": "🎁 Referidos y Soporte",
-        "icono": "🎁",
-        "descripcion": "**Programa de Referidos:**\nComparte tu codigo unico desde Mi Perfil → Referidos. Cuando alguien se registre con tu codigo, ambos ganan 5 creditos.\n\n**Soporte:**\nSi tienes dudas o problemas, ve a **Soporte** y envianos un mensaje o escribenos directamente por WhatsApp. Respondemos rapido.\n\n**Esta guia:**\nPuedes volver a verla cuando quieras desde el menu lateral → 📖 Guia de Uso.",
-        "tip": "Estamos aqui para ayudarte. No dudes en contactarnos por WhatsApp!",
-        "color": "#EC4899"
-    },
-]
-
-paso_actual = st.session_state['onboarding_paso']
-total_pasos = len(pasos)
-paso = pasos[paso_actual]
-
-# Barra de progreso
-progreso = (paso_actual + 1) / total_pasos
-st.markdown(f"""
-<div style='background:rgba(255,255,255,0.08);border-radius:50px;height:6px;margin-bottom:8px;'>
-    <div style='background:linear-gradient(90deg,{paso["color"]},{paso["color"]}99);width:{progreso*100:.0f}%;height:6px;border-radius:50px;transition:width 0.4s;'></div>
-</div>
-<p style='color:#94A3B8;font-size:12px;text-align:right;margin-bottom:24px;'>Paso {paso_actual+1} de {total_pasos}</p>
-""", unsafe_allow_html=True)
-
-# Tarjeta del paso
-st.markdown(f"""
-<div style='background:rgba(30,41,59,0.8);border:1px solid {paso["color"]}44;border-radius:20px;padding:32px;margin-bottom:24px;'>
-    <div style='font-size:3rem;margin-bottom:16px;text-align:center;'>{paso["icono"]}</div>
-    <h2 style='color:{paso["color"]} !important;font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:20px;'>{paso["titulo"]}</h2>
-    <p style='color:#E2E8F0;font-size:1rem;line-height:1.8;white-space:pre-line;'>{paso["descripcion"]}</p>
-</div>
-""", unsafe_allow_html=True)
-
-# Tip
-st.markdown(f"""
-<div style='background:{paso["color"]}15;border-left:4px solid {paso["color"]};border-radius:8px;padding:14px 18px;margin-bottom:28px;'>
-    <span style='color:{paso["color"]};font-weight:700;'>💡 Tip: </span>
-    <span style='color:#CBD5E1;'>{paso["tip"]}</span>
-</div>
-""", unsafe_allow_html=True)
-
-# Botones de navegación
-col_prev, col_dots, col_next = st.columns([1, 2, 1])
-
-with col_prev:
-    if paso_actual > 0:
-        if st.button("← Anterior"):
-            st.session_state['onboarding_paso'] -= 1; st.rerun()
-
-with col_dots:
-    dots_html = ""
-    for i in range(total_pasos):
-        color = paso["color"] if i == paso_actual else "#334155"
-        dots_html += f"<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};margin:0 3px;'></span>"
-    st.markdown(f"<div style='text-align:center;padding-top:10px;'>{dots_html}</div>", unsafe_allow_html=True)
-
-with col_next:
-    if paso_actual < total_pasos - 1:
-        if st.button("Siguiente →"):
-            st.session_state['onboarding_paso'] += 1; st.rerun()
-    else:
-        if st.button("✅ Comenzar"):
-            st.session_state['onboarding_paso'] = 0
-            st.session_state['onboarding_visto'] = True
-            st.rerun()
 
 # ==========================================
 # 🏠 APP PRINCIPAL
@@ -1474,7 +1475,7 @@ else:
             verificados = conn.execute("SELECT COUNT(*) FROM usuarios WHERE verificado_biometria=1").fetchone()[0]
             pendientes_count = conn.execute("SELECT COUNT(*) FROM usuarios WHERE verificado_biometria=2").fetchone()[0]
             hoy = datetime.now().strftime('%Y-%m-%d')
-            premium_count = conn.execute(f"SELECT COUNT(*) FROM usuarios WHERE premium_hasta >= '{hoy}'").fetchone()[0]
+            premium_count = conn.execute("SELECT COUNT(*) FROM usuarios WHERE premium_hasta >= ?", (hoy,)).fetchone()[0]
             bloqueados = conn.execute("SELECT COUNT(*) FROM usuarios WHERE estado_cuenta='bloqueada'").fetchone()[0]
             total_docs = conn.execute("SELECT COUNT(*) FROM facturas").fetchone()[0]
 
