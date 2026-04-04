@@ -8,7 +8,7 @@ import os
 import base64
 import smtplib
 import random
-import io
+import i
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -50,7 +50,6 @@ SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/gmail.send"
 ]
 
 # ==========================================
