@@ -35,7 +35,7 @@ GOOGLE_DISPONIBLE = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 if GOOGLE_DISPONIBLE:
     try:
         import google_auth_oauthlib.flow
-        from googleapiclient.discovery import build
+        import requests as _requests_google
     except ImportError:
         GOOGLE_DISPONIBLE = False
 
@@ -560,7 +560,11 @@ if "code" in st.query_params and st.session_state['usuario_activo'] is None:
     creds = get_google_user_info_and_creds(st.query_params["code"])
     if creds:
         try:
-            user_info = build('oauth2', 'v2', credentials=creds).userinfo().get().execute()
+            resp = _requests_google.get(
+                'https://www.googleapis.com/oauth2/v2/userinfo',
+                headers={'Authorization': f'Bearer {creds.token}'}
+            )
+            user_info = resp.json()
             email = user_info['email']; name = user_info.get('name', 'Usuario')
             _c = conn.cursor()
             existing = _c.execute('SELECT * FROM usuarios WHERE email=?', (email,)).fetchone()
