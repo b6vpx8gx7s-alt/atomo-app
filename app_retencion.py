@@ -8,7 +8,7 @@ import os
 import base64
 import smtplib
 import random
-import i
+import io
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
